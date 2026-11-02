@@ -32,6 +32,7 @@ SYSTEM_PROMPT = """Você é o consultor de atendimento inteligente da Empório d
      * `lookup_catalog`: para pesquisar instrumentos, preços, promoções e parcelamentos.
      * `get_order_details`: para consultar status de pedidos, rastreio e elegibilidade de devolução pelo CDC.
      * `query_store_policy`: para consultar regras oficiais da loja, frete, garantia, horários e endereço.
+6. **Uso Moderado de Emojis:** É permitido o uso moderado e pontual de emojis no diálogo com o cliente (no máximo 1 ou 2 por mensagem), preservando sempre a postura profissional e consultiva, sem poluição visual.
 """
 
 TOOLS_SCHEMA = [
@@ -166,7 +167,7 @@ class ConversationalOrchestrator:
         tool_payloads = []
 
         # 1. Check order tracking intent
-        if any(w in lowered for w in ["pedido", "rastreio", "status", "entrega", "devolução", "devolver"]):
+        if any(w in lowered for w in ["pedido", "rastreio"]):
             import re
             order_id = None
             id_match = re.search(r"\bpedido\s*#?(\d+)\b", lowered) or re.search(r"\b(\d{1,4})\b", lowered)
@@ -196,19 +197,67 @@ class ConversationalOrchestrator:
                 )
                 return ans, tools_called, tool_payloads, 110, 65
 
-        # 2. Check store policy or address intent
-        if any(w in lowered for w in ["horário", "horario", "onde fica", "endereço", "endereco", "frete", "garantia", "telefone"]):
+        # 2. Check instrument / catalog search intent
+        brands = ["yamaha", "tagima", "giannini", "fender", "roland", "casio", "shelby", "kalani", "kala", "rozini", "ibanez", "epiphone", "strinberg", "korg"]
+        has_instrument = any(b in lowered for b in brands) or any(i in lowered for i in ["violão", "violao", "guitarra", "baixo", "teclado", "piano", "bateria", "ukulele", "flauta", "sax"])
+
+        if has_instrument:
+            import re
+            query_term = user_text
+            for brand in brands:
+                if brand in lowered:
+                    m = re.search(rf"\b{brand}\s*([\w\-]+)?", lowered)
+                    if m:
+                        query_term = m.group(0)
+                    break
+
+            res = self._execute_tool("lookup_catalog", {"query": query_term, "in_stock_only": True})
+            tools_called.append(f"lookup_catalog(query='{query_term}')")
+            tool_payloads.append(res)
+
+            if res:
+                items_lines = []
+                for item in res:
+                    promo_info = f" (com desconto especial de {item['discount_percentage']}%)" if item["has_promotion"] else ""
+                    items_lines.append(
+                        f"• {item['name']}{promo_info}: Preço regular R$ {item['regular_price']:.2f}, "
+                        f"à vista no PIX por R$ {item['pix_price']:.2f} ou parcelado em {item['installments']}."
+                    )
+                catalog_summary = "\n".join(items_lines)
+                ans = (
+                    f"Encontrei excelentes opções no nosso catálogo para você:\n\n{catalog_summary}\n\n"
+                    f"Lembrando que o pagamento via PIX conta com 5% de desconto à vista! "
+                    f"Se estiver em Campo Grande, te convido a passar na nossa loja na Rua 14 de Maio, 3200 para sentir o timbre e a pegada de perto!"
+                )
+                return ans, tools_called, tool_payloads, 140, 85
+
+        # 3. Check payment questions
+        if any(w in lowered for w in ["pix", "cartão", "cartao", "parcelar", "parcela", "parcelamento", "pagamento"]):
+            res = self._execute_tool("query_store_policy", {"topic": "formas de pagamento pix cartão parcelamento"})
+            tools_called.append("query_store_policy(topic='pagamento pix cartão')")
+            tool_payloads.append(res)
+            ans = (
+                "Na Empório da Música facilitamos sua compra! Para pagamento à vista no PIX, você ganha 5% de desconto "
+                "sobre o valor de tabela (desconto não-cumulativo com itens em promoção). "
+                "No cartão de crédito, parcelamos em até 12x sem juros (parcelas mínimas: R$ 100 para 7-12x, R$ 80 para 4-6x e R$ 50 para até 3x). "
+                "Qual instrumento você gostaria de adquirir hoje?"
+            )
+            return ans, tools_called, tool_payloads, 110, 60
+
+        # 4. Check store policy or address intent
+        if any(w in lowered for w in ["horário", "horario", "onde fica", "endereço", "endereco", "frete", "garantia", "telefone", "devolução", "devolver"]):
             res = self._execute_tool("query_store_policy", {"topic": user_text})
             tools_called.append(f"query_store_policy(topic='{user_text[:20]}')")
             tool_payloads.append(res)
             ans = (
                 "A Empório da Música está localizada na Rua 14 de Maio, 3200 — Centro, em Campo Grande/MS (CEP 79202-333). "
                 "Para a Grande Campo Grande, temos entrega via motoboy com frete grátis acima de R$ 500 (ou taxa fixa de R$ 35 abaixo desse valor). "
+                "Nossa política de trocas segue o CDC com 7 dias corridos de arrependimento e 30 dias de garantia para defeitos. "
                 "Para mais dúvidas, nosso telefone é (67) 3341-4444. Venha nos visitar e experimentar nossos instrumentos pessoalmente!"
             )
             return ans, tools_called, tool_payloads, 95, 55
 
-        # 3. Default: Catalog lookup
+        # 5. Default fallback
         res = self._execute_tool("lookup_catalog", {"query": user_text, "in_stock_only": True})
         tools_called.append(f"lookup_catalog(query='{user_text[:20]}')")
         tool_payloads.append(res)

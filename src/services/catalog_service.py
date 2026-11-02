@@ -86,10 +86,12 @@ def lookup_catalog(
         cleaned_query = query.strip().lower()
         import re
         stop_words = {
-            "de", "o", "a", "os", "as", "um", "uma", "para", "em", "com",
-            "por", "que", "ver", "gostaria", "quero", "busco", "procuro",
+            "de", "o", "a", "os", "as", "um", "uma", "uns", "umas", "para", "em", "com",
+            "por", "que", "ver", "gostaria", "quero", "busco", "procuro", "procurando",
             "tem", "têm", "qual", "quais", "quanto", "custa", "preço", "valor",
-            "mostrar", "me", "sobre"
+            "mostrar", "me", "sobre", "olá", "ola", "oi", "bom", "dia", "boa", "tarde",
+            "noite", "você", "voce", "vocês", "voces", "saber", "se", "favor", "porfavor",
+            "loja", "vende", "vendem", "disponível", "estoque"
         }
         tokens = [w for w in re.findall(r"\w+", cleaned_query) if w not in stop_words]
         if not tokens:
@@ -110,6 +112,48 @@ def lookup_catalog(
     cursor = conn.cursor()
     cursor.execute(sql, params)
     rows = cursor.fetchall()
+
+    # Fallback to OR matching if AND produced zero results and multiple tokens were given
+    if not rows and query and len(tokens) > 1:
+        or_sql = """
+            SELECT 
+                p.product_id,
+                p.name,
+                p.brand,
+                p.price,
+                p.stock_quantity,
+                p.description,
+                c.name AS category_name,
+                promo.discount_percentage,
+                promo.description AS promo_description
+            FROM products p
+            LEFT JOIN categories c ON p.category_id = c.category_id
+            LEFT JOIN promotions promo 
+                ON p.product_id = promo.product_id AND promo.is_active = 1
+            WHERE p.status = 'active'
+        """
+        or_params: List[Any] = []
+        if in_stock_only:
+            or_sql += " AND p.stock_quantity > 0"
+        if max_price is not None:
+            or_sql += " AND p.price <= ?"
+            or_params.append(float(max_price))
+        if category:
+            or_sql += " AND LOWER(c.name) LIKE ?"
+            or_params.append(f"%{category.lower().strip()}%")
+
+        or_conditions = []
+        for t in tokens:
+            or_conditions.append(
+                "(LOWER(p.name) LIKE ? OR LOWER(p.brand) LIKE ? OR LOWER(p.description) LIKE ?)"
+            )
+            or_params.extend([f"%{t}%", f"%{t}%", f"%{t}%"])
+        or_sql += f" AND ({' OR '.join(or_conditions)})"
+        or_sql += " ORDER BY p.price ASC LIMIT ?"
+        or_params.append(min(limit, 5))
+
+        cursor.execute(or_sql, or_params)
+        rows = cursor.fetchall()
 
     results: List[Dict[str, Any]] = []
     for row in rows:

@@ -172,9 +172,9 @@ Adhering to strict technical evaluation guidelines, progress is deployed via fre
   - Implemented `src/orchestrator.py` with native tool bindings (`lookup_catalog`, `get_order_details`, `query_store_policy`).
   - Implemented consultative selling persona with subtle Campo Grande physical store invitation guidelines.
   - Added unit tests in `tests/test_orchestrator.py` (**30/30 tests passing**).
-- [ ] **Step 6: Rich Interactive CLI & Comprehensive Execution Scenarios** (`feat`)
-  - Implement `src/cli.py` with Real-Time Observability HUD.
-  - Execute and record the 5 mandatory business scenarios into `examples/`.
+- [x] **Step 6: Rich Interactive CLI & Comprehensive Execution Scenarios** (`feat`)
+  - Implemented `src/cli.py` with session isolation, real-time Telemetry HUD (no emojis in UI), and slash commands (`/session`, `/history`, `/metrics`, `/clear`, `/exit`).
+  - Executed and recorded the 5 mandatory business scenarios into `examples/`.
 - [ ] **Step 7: Full Final Documentation & Observability Report** (`docs`)
 
 ---
@@ -195,19 +195,28 @@ Adhering to strict technical evaluation guidelines, progress is deployed via fre
 * **Decoupled Relational Schema (`emporio_records.db`):**
   1. `conversation_history`: Stores customer-facing dialogue turns (`role`, `content`, `session_id`) for sliding-window context replay.
   2. `execution_audit_logs`: Stores granular telemetry events (`TOOL_INVOCATION`, `GUARDRAIL_INTERCEPT`, `AGENT_RESPONSE`, `ERROR`), capturing input/output JSON payloads, latency in ms, prompt tokens, and completion tokens.
-* **Real-Time Observability HUD:** Below every conversational turn, the system outputs an executive telemetry card:
+* **Real-Time Observability HUD:** Below every conversational turn, the system outputs an executive telemetry card (strictly text-based, without emojis in UI elements for a professional presentation):
   ```text
-  ┌─ [TELEMETRY & AUDIT HUD] ────────────────────────────────────────────────────────┐
-  │ ⚡ Latency: 412ms  |  🪙 Tokens: 184 (Prompt: 128 / Completion: 56)              │
-  │ 🛠️ Tool Invoked: lookup_catalog(query="Yamaha C40", in_stock_only=True)          │
-  │ 🛡️ Guardrails: Scope Passed | Factual Grounding: 100% Verified                   │
-  └──────────────────────────────────────────────────────────────────────────────────┘
+  ┌─ [TELEMETRY & AUDIT HUD] ───────────────────────────────────────────────────────┐
+  │ [LATENCY] 412ms  |  [TOKENS] 184 (Prompt: 128 / Completion: 56)                │
+  │ [TOOL INVOKED] lookup_catalog(query="Yamaha C40", in_stock_only=True)          │
+  │ [GUARDRAILS] Scope Passed | Factual Grounding: 100% Verified                  │
+  └────────────────────────────────────────────────────────────────────────────────┘
   ```
 
 ### 6.4 Agent Core & Native Tool Calling (Step 5)
 * **Typed Tool Schemas (`TOOLS_SCHEMA`):** Exposes JSON Schema-compliant function definitions for `lookup_catalog`, `get_order_details`, and `query_store_policy` to Groq (`llama-3.3-70b-versatile`) and OpenAI (`gpt-4o-mini`).
 * **Consultative Persona:** Musically knowledgeable, friendly, and respectful ("fellow musician" persona). Natural invitations to visit the Campo Grande store (Rua 14 de Maio, 3200) to test timbre and ergonomics in person.
 * **Intelligent Dual-Execution Architecture:** If live LLM credentials are provided, runs native function calling with two-pass tool response synthesis. If running offline/test mode, falls back to deterministic intent routing while exercising the exact same backend tools and guardrails.
+
+### 6.5 Interactive CLI & Mandatory Business Scenarios (Step 6)
+* **Rich Terminal Console (`src/cli.py`):** Executive CLI with live session switching (`/session <id>`), audit replay (`/history`), session metrics aggregation (`/metrics`), and real-time Telemetry HUD.
+* **5 Mandatory Challenge Scenarios (`examples/`):**
+  1. [`examples/scenario_1_catalog_search.md`](examples/scenario_1_catalog_search.md): Beginner guitar inquiry (Yamaha C40), 5% PIX discount, and interest-free installment schedule.
+  2. [`examples/scenario_2_order_tracking.md`](examples/scenario_2_order_tracking.md): Order status check (#1), courier delivery confirmation, and tracking code.
+  3. [`examples/scenario_3_return_policy_cdc.md`](examples/scenario_3_return_policy_cdc.md): CDC Art. 49 7-day remorse window vs. 30-day manufacturing warranty.
+  4. [`examples/scenario_4_accessory_refusal.md`](examples/scenario_4_accessory_refusal.md): Deterministic zero-LLM interception for strings, picks, cables, and guitar amps with local store redirection.
+  5. [`examples/scenario_5_out_of_scope.md`](examples/scenario_5_out_of_scope.md): Prompt injection defense and non-musical scope boundary enforcement.
 
 ---
 
@@ -258,7 +267,13 @@ pip install -r requirements.txt
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your LLM API keys
+# Edit .env with your LLM API keys (optional: works offline/fallback automatically)
+
+# Run interactive Rich CLI console
+python src/cli.py
+
+# Generate/Export all 5 challenge scenario transcripts into examples/
+python scripts/generate_scenarios.py
 ```
 
 ---

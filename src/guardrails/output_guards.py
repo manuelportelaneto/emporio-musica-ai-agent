@@ -24,7 +24,13 @@ def extract_prices_from_text(text: str) -> List[float]:
     matches = re.findall(r"R\$\s*([\d\.\,]+)", text)
     prices = []
     for m in matches:
-        cleaned = m.replace(".", "").replace(",", ".").strip()
+        raw = m.strip().rstrip(".,;:!?")
+        if "," in raw and "." in raw:
+            cleaned = raw.replace(".", "").replace(",", ".")
+        elif "," in raw:
+            cleaned = raw.replace(",", ".")
+        else:
+            cleaned = raw
         try:
             val = float(cleaned)
             prices.append(val)

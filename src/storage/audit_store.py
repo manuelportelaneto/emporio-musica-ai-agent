@@ -245,9 +245,9 @@ class AuditStore:
         """Render Observability HUD string per SPEC.md Section 7."""
         tool_display = tool_invoked or "None (Direct/Intercepted)"
         total_tokens = prompt_tokens + completion_tokens
-        line1 = f"⚡ Latency: {latency_ms:.0f}ms  |  🪙 Tokens: {total_tokens} (Prompt: {prompt_tokens} / Completion: {completion_tokens})"
-        line2 = f"🛠️ Tool Invoked: {tool_display}"
-        line3 = f"🛡️ Guardrails: {guardrails_summary}"
+        line1 = f"[LATENCY] {latency_ms:.0f}ms  |  [TOKENS] {total_tokens} (Prompt: {prompt_tokens} / Completion: {completion_tokens})"
+        line2 = f"[TOOL INVOKED] {tool_display}"
+        line3 = f"[GUARDRAILS] {guardrails_summary}"
 
         width = 82
         border_top = "┌─ [TELEMETRY & AUDIT HUD] " + ("─" * (width - 27)) + "┐"

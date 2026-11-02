@@ -97,6 +97,6 @@ class TestAuditStore:
         )
         assert "TELEMETRY & AUDIT HUD" in hud
         assert "412ms" in hud
-        assert "Tokens: 184" in hud
+        assert "[TOKENS] 184" in hud
         assert "lookup_catalog" in hud
         assert "100% Verified" in hud

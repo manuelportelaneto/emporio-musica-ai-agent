@@ -286,11 +286,11 @@ CREATE TABLE IF NOT EXISTS execution_audit_logs (
 
 The CLI/UI must display an **Observability HUD** below each assistant turn:
 ```text
-┌─ [TELEMETRY & AUDIT HUD] ────────────────────────────────────────────────────────┐
-│ ⚡ Latency: 412ms  |  🪙 Tokens: 184 (Prompt: 128 / Completion: 56)              │
-│ 🛠️ Tool Invoked: lookup_catalog(query="Yamaha C40", in_stock_only=True)          │
-│ 🛡️ Guardrails: Scope Passed | Factual Grounding: 100% Verified                   │
-└──────────────────────────────────────────────────────────────────────────────────┘
+┌─ [TELEMETRY & AUDIT HUD] ───────────────────────────────────────────────────────┐
+│ [LATENCY] 412ms  |  [TOKENS] 184 (Prompt: 128 / Completion: 56)                │
+│ [TOOL INVOKED] lookup_catalog(query="Yamaha C40", in_stock_only=True)          │
+│ [GUARDRAILS] Scope Passed | Factual Grounding: 100% Verified                  │
+└────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
