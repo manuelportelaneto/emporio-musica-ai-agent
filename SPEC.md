@@ -18,8 +18,14 @@ The human customer support team is currently bottlenecked by high volumes of rep
 
 ### 1.2 Core Business Directives & Boundary Constraints
 1. **Strict Catalog Scope:** The store retails **musical instruments exclusively**. Per internal policy, it does **not** sell accessories (e.g., strings, cables, picks, pedals, amplifiers, gig bags, cases, or tuners). All accessory queries must be politely declined and redirected to partner stores in Campo Grande.
-2. **Consultative Selling Tone:** Friendly, warm, musically knowledgeable ("fellow musician" persona), and transparent. The assistant subtly invites local customers to experience instruments in person at the Campo Grande store when evaluating ergonomics or tone, without aggressive or pushy sales tactics.
-3. **Operational Policies Adherence:**
+2. **Consultative Selling Tone:** Friendly, warm, musically knowledgeable ("fellow musician" persona), and transparent. The assistant invites customers to the Campo Grande store (Rua 14 de Maio, 3200) **contextually and subtly** (e.g., when the customer wants to feel the neck ergonomics, test acoustic resonance in person, or asks for physical address), strictly avoiding repetitive or intrusive canned sales invitations on generic searches.
+3. **Progressive Profiling & Customer Identity:**
+   - **Frictionless Initial Browsing:** Anonymous browsing of instruments, prices, and policies is permitted without forced login gates.
+   - **Progressive Identification (Phone-First):** When sensitive operations occur (checking order status, initiating returns, or saving personal preferences), the assistant requests the customer's **full Phone (`phone`)** and name to authenticate or create a new account dynamically. Full phone numbers are used instead of CPFs to reduce customer friction while complying with LGPD data minimization principles.
+   - **Dynamic Account Resolution:** If the phone matches `customers`, the account is unlocked with full purchase history. If not found, a new customer record is created on the fly.
+   - **Contextual In-Flow Data Collection:** Additional data (e.g., street address for localized motoboy delivery calculation) is requested naturally as the conversation requires it.
+4. **Customer Affinity Profiling:** As the customer discusses instruments and musical styles, contextual keywords and interest tags (e.g., `["guitarra", "fender", "iniciante", "rock"]`) are captured and attached to the session context for tailored recommendations.
+5. **Operational Policies Adherence:**
    - **Payment:** PIX (5% off on regular-priced items; non-cumulative with active promotions), Credit Card up to 12x interest-free (installments $\ge$ R$ 100 for 7–12x; $\ge$ R$ 80 for 4–6x; $\ge$ R$ 50 for up to 3x).
    - **Returns:** Statutory 7-day remorse return window starting from delivery date (Brazilian Consumer Defense Code - CDC); 30-day warranty for defects; mouthpieces, custom setups, and clearance items marked "final sale" are strictly non-refundable.
    - **Shipping:** Free local shipping in Greater Campo Grande for orders > R$ 500; flat fee of R$ 35 below R$ 500 (motoboy delivery in 1–3 business days). Out-of-state shipments handled via Correios (PAC/SEDEX) and Jadlog.
@@ -32,10 +38,11 @@ This project adheres strictly to **Spec-Driven Development (SDD)** with an **Arc
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Client & HUD Layer"]
-        UserIn["User Message"]
-        CLI["Interactive CLI / Web Interface"]
-        HUD["Telemetry HUD (Latency, Tokens, Tool Invocation, Guardrails)"]
+    subgraph Evaluator ["Evaluator Wrapper Layer"]
+        Welcome["Screen 1: Welcome & Engine Selector (Offline vs Online)"]
+        ChatScreen["Screen 2: Active Conversational Environment"]
+        ExitCmd["Exit Command: /exit /finish"]
+        Dashboard["Screen 3: Post-Conversation Executive Dashboard"]
     end
 
     subgraph Defense ["Multi-Layer Defense in Depth"]
@@ -44,73 +51,71 @@ flowchart TD
         G_Out["Output Guardrail: Factual Grounding & Persona Check"]
     end
 
-    subgraph Core ["Orchestration Engine"]
-        LLM["Lightweight Tool-Calling Agent (Groq / OpenAI / Ollama)"]
+    subgraph Core ["Orchestration & CRM Engine"]
+        LLM["Tool-Calling Agent (Groq / OpenAI / Deterministic Fallback)"]
         Memory["Sliding Window Session Memory"]
+        Profiler["Affinity Tag Extractor & Sentiment Analyzer"]
     end
 
     subgraph Backend ["Deterministic Backend Services"]
         CatSvc["Catalog Service (SQLite In-Memory)"]
         OrdSvc["Order Lifecycle Service (SQLite In-Memory)"]
         PolSvc["Policy RAG Service (FAISS / Local Embeddings)"]
+        AuthSvc["Customer Auth & Progressive CRM Service"]
     end
 
     subgraph Storage ["Persistence & Data Sources"]
         CSVs[("data/*.csv")]
         PolicyPDF[("data/políticas_da_loja.pdf")]
-        DBChat[("SQLite: chat_history")]
+        DBChat[("SQLite: conversation_history")]
         DBAudit[("SQLite: execution_audit_logs")]
+        DBSessions[("SQLite: customer_sessions")]
     end
 
-    UserIn --> CLI
-    CLI --> G_In
+    Welcome -->|Selected Engine & Ephemeral Key| ChatScreen
+    ChatScreen --> G_In
     G_In -->|Passed| LLM
-    G_In -->|Blocked: Accessory/PII| CLI
+    G_In -->|Blocked: Accessory/PII| ChatScreen
     
     LLM <--> Memory
     LLM --> G_Exec
-    G_Exec --> CatSvc
-    G_Exec --> OrdSvc
-    G_Exec --> PolSvc
+    G_Exec --> CatSvc & OrdSvc & PolSvc & AuthSvc
 
-    CatSvc <--> CSVs
-    OrdSvc <--> CSVs
-    PolSvc <--> PolicyPDF
-
-    CatSvc & OrdSvc & PolSvc --> LLM
+    CatSvc & OrdSvc & PolSvc & AuthSvc --> LLM
     LLM --> G_Out
-    G_Out --> CLI
-    CLI -.-> HUD
+    G_Out --> ChatScreen
+    ChatScreen -->|User triggers /exit| Dashboard
+    Dashboard -->|Return / New Session / Quit| Welcome
 
+    Profiler -.-> DBSessions
     Memory -.-> DBChat
-    G_In & G_Exec & G_Out & CatSvc & OrdSvc & PolSvc -.-> DBAudit
+    G_In & G_Exec & G_Out & CatSvc & OrdSvc & PolSvc & AuthSvc -.-> DBAudit
 ```
 
 ### 2.1 Trade-Off Analysis & Architectural Decisions
 
 | Decision | Alternative Evaluated | Engineering Rationale & Business Objective |
 | :--- | :--- | :--- |
-| **Single Agent with Native Tool Calling** | Multi-Agent Hierarchy (Router + Worker Agent) | Multi-agent pipelines introduce dual LLM invocations for every turn, compounding latency ($+1200\text{ms}$) and doubling token costs. Native function calling (`bind_tools`) achieves deterministic sub-500ms execution with typed JSON schema validation and zero loss of contextual parameters. |
-| **Deterministic Backend Tool Services** | Text-to-SQL Dynamic Generation | Free-form SQL generation by LLMs is vulnerable to prompt injection, schema hallucination, and Cartesian product overflows. Encapsulating domain logic into Python services with parameterized queries guarantees data security, token efficiency, and predictable business outputs. |
-| **In-Memory Relational Engine (SQLite)** | External PostgreSQL / Cloud DB | The operational dataset consists of 6 structured CSVs ($<100\text{ KB}$). An in-memory SQLite engine (`sqlite3`) loads in $<15\text{ms}$, requires zero infrastructure overhead, provides relational integrity (`JOIN` across products, promotions, and orders), and is fully self-contained. |
-| **Decoupled Local Vector RAG for Policies** | Ingestion of raw PDF text directly into System Prompt | Ingesting an 8-page PDF directly into the context window wastes $\sim 3,800$ tokens per conversational turn. Semantic chunking into FAISS with local CPU embeddings (`all-MiniLM-L6-v2`) retrieves only the top-2 relevant snippets ($\sim 180$ tokens), cutting token consumption by $>90\%$. |
-| **Dual-Layer Persistence Architecture** | Single consolidated log file | Cleanly decouples user-facing chat history (`conversation_history`) needed for context replay from operational telemetry (`execution_audit_logs`) used for latency profiling, token counting, and tool execution audits. |
+| **Progressive Profiling via Phone** | Upfront Hard Auth Gate (Mandatory CPF/Password) | Requiring credentials upfront causes $>80\%$ bounce rates on e-commerce. Progressive profiling allows anonymous browsing, prompting for Full Phone only when contextualizing orders or saving records. |
+| **Ephemeral In-Memory API Key Management** | Hardcoded or Stored `.env` Secrets | For evaluator ease and zero leak risk, evaluator API keys are accepted in memory at runtime, never persisted to disk, and wiped on program exit. |
+| **Single Agent with Native Tool Calling** | Multi-Agent Hierarchy (Router + Worker Agent) | Multi-agent pipelines introduce dual LLM invocations for every turn, compounding latency ($+1200\text{ms}$) and doubling token costs. Native function calling (`bind_tools`) achieves deterministic sub-500ms execution with typed JSON schema validation. |
+| **Deterministic Backend Tool Services** | Text-to-SQL Dynamic Generation | Free-form SQL generation by LLMs is vulnerable to prompt injection, schema hallucination, and Cartesian product overflows. Parameterized Python services guarantee security, consistency, and exact CDC remorse math. |
+| **Dual-Layer Persistence + Session CRM** | Single consolidated log file | Decouples chat replay (`conversation_history`) from technical telemetry (`execution_audit_logs`) and customer session metrics (`customer_sessions`). |
 
 ---
 
 ## 3. Data Ingestion & Relational Schema Specifications
 
 ### 3.1 Raw Data Sources (`data/` Directory)
-- `data/categories.csv`: Category hierarchy (e.g., Guitarras, Baixos, Violões, Teclados).
+- `data/categories.csv`: Category hierarchy (Guitarras, Baixos, Violões, Teclados).
 - `data/products.csv`: Instruments inventory, brands, specifications, prices, stock levels.
-- `data/customers.csv`: Customer records, contact details, addresses.
+- `data/customers.csv`: Customer records, names, phones, emails, addresses.
 - `data/orders.csv`: Order header data, status, tracking codes, delivery dates.
 - `data/order_items.csv`: Order line items with historical unit prices.
 - `data/promotions.csv`: Discount campaigns with start/end dates and active flags.
 - `data/políticas_da_loja.pdf`: Internal customer service manual and operational rules.
 
 ### 3.2 In-Memory SQLite Schema
-On system initialization, CSVs are parsed and normalized into an in-memory SQLite database:
 
 ```sql
 CREATE TABLE categories (
@@ -130,12 +135,15 @@ CREATE TABLE products (
 );
 
 CREATE TABLE customers (
-    customer_id INTEGER PRIMARY KEY,
+    customer_id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    email TEXT NOT NULL,
-    phone TEXT NOT NULL,
+    email TEXT,
+    phone TEXT UNIQUE NOT NULL,
+    birth_date TEXT,
+    address TEXT,
     city TEXT,
-    state TEXT
+    state TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE orders (
@@ -169,93 +177,75 @@ CREATE TABLE promotions (
 ### 3.3 Non-Structured Policy RAG Vector Store
 - **Source:** `data/políticas_da_loja.pdf`
 - **Chunking Strategy:** Recursive character splitting (chunk size: 400 characters, overlap: 60 characters).
-- **Embedding Model:** Local `sentence-transformers/all-MiniLM-L6-v2` (runs entirely on CPU via `fastembed` or `sentence-transformers`).
-- **Vector Database:** In-memory `FAISS` index.
-- **Retrieval Threshold:** Cosine similarity threshold $\ge 0.65$; falls back to store contact routing if below threshold.
+- **Embedding / Vector Search:** Lightweight local TF-IDF semantic vector cosine index for instant, zero-dependency, reproducible retrieval.
 
 ---
 
 ## 4. Deterministic Backend Tool Contracts
 
-The LLM is strictly bound to typed function calls. Under no circumstances does the LLM access raw database connections.
-
 ### Tool 1: `lookup_catalog`
-- **Description:** Search instruments in the catalog, checking stock availability, active promotional pricing, and calculating cash payment discounts.
-- **Parameters:**
-  ```json
-  {
-    "query": {"type": "string", "description": "Keyword search across instrument name, brand, or model"},
-    "category": {"type": "string", "description": "Optional category filter (e.g., Violões, Guitarras, Teclados)"},
-    "max_price": {"type": "number", "description": "Maximum price limit in BRL"},
-    "in_stock_only": {"type": "boolean", "default": true, "description": "Filter strictly to available items"}
-  }
-  ```
-- **Business Logic:**
-  - Queries `products` joined with active `promotions` (`is_active = 1`).
-  - Computes `promo_price = price * (1 - discount_percentage / 100)`.
-  - Computes `pix_price`: If on promotion, `pix_price = promo_price` (non-cumulative per Section 6.2); if regular price, `pix_price = price * 0.95`.
-  - Calculates installment conditions per Section 3.1: 12x with R$ 100 min installment; 6x with R$ 80 min installment.
-  - Limits output to Top 3 results to conserve context tokens.
+- **Parameters:** `query` (string), `category` (string), `max_price` (float), `in_stock_only` (bool).
+- **Business Logic:** Relational lookup with 5% PIX non-cumulative discount and 12x/6x installment calculator. Limits output to Top 3.
 
 ### Tool 2: `get_order_details`
-- **Description:** Fetch order status, tracking code, ordered items, and compute return eligibility.
-- **Parameters:**
-  ```json
-  {
-    "order_id": {"type": "integer", "description": "Unique integer ID of the order"},
-    "customer_name_or_phone": {"type": "string", "description": "Customer name or contact info for lookup"}
-  }
-  ```
-- **Business Logic:**
-  - Resolves order from `orders` and `order_items`.
-  - Deterministic Return Calculation: Compares current system date against `delivery_date`.
-    - If $\Delta \text{days} \le 7$, flag `is_eligible_for_return = true`.
-    - If $\Delta \text{days} > 7$, flag `is_eligible_for_return = false` and cite 30-day warranty for manufacturing defects only.
-  - Returns concise summary with delivery tracking code.
+- **Parameters:** `order_id` (int), `customer_name_or_phone` (string).
+- **Business Logic:** Returns order status, tracking, items, and CDC Art. 49 7-day remorse calculation.
 
 ### Tool 3: `query_store_policy`
-- **Description:** Query official store manual regarding store policies, hours, address, shipping rules, and warranties.
+- **Parameters:** `topic` (string).
+- **Business Logic:** Semantic chunk retrieval from `políticas_da_loja.pdf` for shipping, hours, address, and warranty terms.
+
+### Tool 4: `authenticate_or_register_customer`
+- **Description:** Identifica e autentica um cliente existente pelo telefone completo ou cria um novo cadastro de forma transparente.
 - **Parameters:**
   ```json
   {
-    "topic": {"type": "string", "description": "Specific policy question (e.g., 'horário de funcionamento', 'frete para Campo Grande', 'garantia de instrumentos')"}
+    "phone": {"type": "string", "description": "Telefone completo do cliente com DDD (ex: '6799887766' ou '67 99988-7766')"},
+    "name": {"type": "string", "description": "Nome completo do cliente"},
+    "birth_date": {"type": "string", "description": "Data de nascimento opcional (ex: '15/04/1990')"}
   }
   ```
-- **Business Logic:**
-  - Queries local FAISS index for top 2 most similar text chunks.
-  - Returns extracted text along with policy section references.
+- **Business Logic:** Normalizes phone number digits. Searches `customers` table. If matched, returns customer ID, verified name, and recent orders. If not matched, inserts new customer record, binds to active session, and returns fresh customer profile.
+
+### Tool 5: `update_customer_profile`
+- **Description:** Atualiza dados cadastrais complementares (endereço ou preferências musicais) de forma fluida e contextual durante o atendimento.
+- **Parameters:**
+  ```json
+  {
+    "phone": {"type": "string", "description": "Telefone do cliente autenticado"},
+    "address": {"type": "string", "description": "Novo endereço ou CEP para entrega"},
+    "musical_interests": {"type": "array", "items": {"type": "string"}, "description": "Instrumentos ou marcas de interesse"}
+  }
+  ```
+- **Business Logic:** Updates address and records customer preferences in relational database.
 
 ---
 
 ## 5. Multi-Layer Guardrails Specification
 
 ### 5.1 Layer 1: Input Guardrails
-1. **Accessory Denial Interceptor (Deterministic):**
+1. **Accessory Denial Interceptor (Zero-LLM Bypass):**
    - Matches keywords: *cordas, encordoamento, palheta, cabo, pedal, pedaleira, amplificador, caixa, case, bag, afinador, correia, suporte*.
-   - **Bypasses LLM Tool Processing.** Returns an immediate, courteous response:
-     > *"Na Empório da Música somos especialistas exclusivos em instrumentos musicais! Não comercializamos acessórios como cordas, palhetas, cabos ou amplificadores. Se você estiver em Campo Grande, podemos indicar lojas parceiras na região central. Posso te ajudar com a escolha de algum instrumento do nosso catálogo hoje?"*
+   - Returns immediate polite refusal and points to central Campo Grande stores, consuming 0 tokens.
 2. **PII Masking & Sanitization:**
-   - Detects and masks Brazilian CPF patterns (`\d{3}\.\d{3}\.\d{3}-\d{2}`) and credit card numbers prior to persistence or context injection.
+   - Detects and masks Brazilian CPF patterns (`\d{3}\.\d{3}\.\d{3}-\d{2}`) and credit card numbers as `[CPF PROTEGIDO]` and `[CARTÃO PROTEGIDO]`.
 3. **Prompt Injection & Off-Topic Jailbreak Guard:**
-   - Detects system prompt override attempts and unrelated topics (e.g., political opinions, programming tasks, medical advice). Re-anchors dialogue to musical instruments.
+   - Detects prompt overrides and non-retail requests. Re-anchors dialogue to musical instruments.
 
 ### 5.2 Layer 2: Execution Guardrails
-1. **Read-Only SQLite Pragma:** Database connection enforces `PRAGMA query_only = ON;`.
-2. **Strict Limit Enforcement:** Every SQL query enforces `LIMIT 3` to prevent context explosion.
-3. **Execution Timeout:** Tool invocations terminate after 3000ms timeout with graceful fallback.
+1. **Read-Only SQLite Pragma:** Analytical queries run under `PRAGMA query_only = ON;`.
+2. **Strict Limit Enforcement:** Catalog queries enforce `LIMIT 3` to prevent context explosion.
 
 ### 5.3 Layer 3: Output Guardrails
-1. **Factual Grounding Cross-Check:** Verifies that quoted prices, product models, and order statuses match the exact payload returned by the executed tool.
-2. **Commercial Tone Modulator:** Ensures the consultative tone is maintained and prevents aggressive sales pressure. Ensures the store visit invitation is natural.
+1. **Factual Grounding Cross-Check:** Verifies that quoted prices and product models match the exact tool payload.
+2. **Commercial Tone Modulator:** Ensures consultative warmth and strictly limits physical store invitations to natural conversational moments.
 
 ---
 
-## 6. Persistence & Telemetry Schema
-
-All system actions are persisted in an isolated SQLite database `emporio_records.db`:
+## 6. Persistence, Telemetry & CRM Schema
 
 ```sql
--- 1. Conversational History (Customer-facing thread)
+-- 1. Conversational History
 CREATE TABLE IF NOT EXISTS conversation_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id TEXT NOT NULL,
@@ -264,34 +254,81 @@ CREATE TABLE IF NOT EXISTS conversation_history (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 2. Execution Audit & Telemetry Log (Low-level execution metrics)
+-- 2. Execution Audit & Telemetry Log
 CREATE TABLE IF NOT EXISTS execution_audit_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id TEXT NOT NULL,
     event_type TEXT NOT NULL, -- 'TOOL_INVOCATION', 'GUARDRAIL_INTERCEPT', 'AGENT_RESPONSE', 'ERROR'
-    component_name TEXT NOT NULL, -- e.g., 'lookup_catalog', 'accessory_guardrail'
+    component_name TEXT NOT NULL,
     input_payload TEXT,
     output_payload TEXT,
     latency_ms REAL NOT NULL,
     prompt_tokens INTEGER DEFAULT 0,
     completion_tokens INTEGER DEFAULT 0,
-    status TEXT NOT NULL, -- 'SUCCESS', 'BLOCKED', 'FAILED'
+    status TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. Customer Session Summary & Analytics CRM
+CREATE TABLE IF NOT EXISTS customer_sessions (
+    session_id TEXT PRIMARY KEY,
+    customer_id INTEGER REFERENCES customers(customer_id),
+    phone TEXT,
+    customer_name TEXT,
+    affinity_tags TEXT, -- JSON array: e.g. ["violão", "yamaha", "iniciante"]
+    sentiment_score TEXT, -- 'Positivo', 'Neutro', 'Frustrado', 'Curioso / Entusiasmado'
+    interaction_category TEXT, -- 'Consulta Catálogo', 'Pós-Venda / Rastreio', 'Troca / Devolução', 'Fora de Escopo'
+    alerts_detected TEXT, -- JSON array of multi-scope alerts
+    total_duration_sec INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
 ---
 
-## 7. Interactive Interface & Observability HUD
+## 7. Evaluator Wrapper & Interactive Lifecycle Experience
 
-The CLI/UI must display an **Observability HUD** below each assistant turn:
-```text
-┌─ [TELEMETRY & AUDIT HUD] ───────────────────────────────────────────────────────┐
-│ [LATENCY] 412ms  |  [TOKENS] 184 (Prompt: 128 / Completion: 56)                │
-│ [TOOL INVOKED] lookup_catalog(query="Yamaha C40", in_stock_only=True)          │
-│ [GUARDRAILS] Scope Passed | Factual Grounding: 100% Verified                  │
-└────────────────────────────────────────────────────────────────────────────────┘
-```
+To provide a professional experience for technical evaluators, the application is wrapped in an interactive 3-stage lifecycle:
+
+### 7.1 Screen 1: Welcome & Engine Configuration
+* **Executive Intro:** Project overview (Empório da Música AI Agent – Artefact Technical Case).
+* **Engine Selection:**
+  * `[1] Modelo Determinístico Offline (Padrão)`: Zero-cost, sub-20ms latency, deterministic tool routing, 100% stable without external dependencies.
+  * `[2] LLM Online (Groq / OpenAI)`:
+    - Evaluator selects provider and model (e.g. `llama-3.3-70b-versatile` or `gpt-4o-mini`).
+    - Secure masked API key prompt (`getpass`).
+    - **Ephemeral Security Guarantee:** API keys remain strictly in-memory during execution, are never written to disk or logs, and are wiped immediately upon exiting.
+
+### 7.2 Screen 2: Active Conversational Environment
+* Interactive Rich chat terminal with live Telemetry HUD displayed after every turn (no emojis in UI frame):
+  ```text
+  ┌─ [TELEMETRY & AUDIT HUD] ───────────────────────────────────────────────────────┐
+  │ [RESPONSE TIME] 18ms  |  [TOKENS] 210 (Prompt: 135 / Completion: 75)            │
+  │ [TOOL INVOKED] lookup_catalog(query="Yamaha C40", in_stock_only=True)          │
+  │ [GUARDRAILS] Scope Passed | Factual Grounding: 100% Verified                  │
+  └────────────────────────────────────────────────────────────────────────────────┘
+  ```
+* Exit command: `/exit`, `/finish`, or `/quit` immediately closes the chat turn and transitions to the post-conversation analytics dashboard.
+
+### 7.3 Screen 3: Post-Conversation Executive Analytics & Insights Dashboard
+Rendered as a Rich formatted analytics report displaying:
+1. **Session Performance Metrics:**
+   - Total conversation duration (e.g. `1m 42s`).
+   - Average agent response time / latency (e.g. `24.5 ms`).
+   - Total tokens consumed & average tokens per turn.
+   - Ranking of tools and actions invoked.
+2. **Customer Intelligence & CRM Profile:**
+   - Registration status: `Cadastrado (ID #X - Nome)` vs `Visitante / Não Cadastrado`.
+   - Customer Sentiment Assessment: *Positivo*, *Neutro*, *Frustrado*, *Curioso / Entusiasmado*.
+   - Inferred Musical Affinity Tags: e.g. `["violão", "yamaha", "iniciante"]`.
+3. **Multi-Scope System Alerts & Insights:**
+   - **Development Scope (Melhorias de Sistema):** Ambiguous queries detected, search fallbacks triggered, or latency spikes.
+   - **Security Scope (Segurança & Compliance):** Prompt injection attempts, jailbreak attempts, or masked PII occurrences.
+   - **Business Scope (Oportunidades de Negócio):** Products searched that are out-of-stock or non-catalog (e.g. unmet demand for accessories or unstocked brands).
+4. **Evaluator Action Menu:**
+   - `[1] Retornar à conversa atual` (resume chat session)
+   - `[2] Iniciar nova conversa` (reset session for a new clean run)
+   - `[3] Sair do programa` (clean memory wipe and shutdown)
 
 ---
 
