@@ -84,12 +84,25 @@ def lookup_catalog(
 
     if query:
         cleaned_query = query.strip().lower()
-        sql += """ AND (
-            LOWER(p.name) LIKE ? OR
-            LOWER(p.brand) LIKE ? OR
-            LOWER(p.description) LIKE ?
-        )"""
-        params.extend([f"%{cleaned_query}%", f"%{cleaned_query}%", f"%{cleaned_query}%"])
+        import re
+        stop_words = {
+            "de", "o", "a", "os", "as", "um", "uma", "para", "em", "com",
+            "por", "que", "ver", "gostaria", "quero", "busco", "procuro",
+            "tem", "têm", "qual", "quais", "quanto", "custa", "preço", "valor",
+            "mostrar", "me", "sobre"
+        }
+        tokens = [w for w in re.findall(r"\w+", cleaned_query) if w not in stop_words]
+        if not tokens:
+            tokens = [cleaned_query]
+
+        token_conditions = []
+        for t in tokens:
+            token_conditions.append(
+                "(LOWER(p.name) LIKE ? OR LOWER(p.brand) LIKE ? OR LOWER(p.description) LIKE ?)"
+            )
+            params.extend([f"%{t}%", f"%{t}%", f"%{t}%"])
+
+        sql += f" AND ({' AND '.join(token_conditions)})"
 
     sql += " ORDER BY p.price ASC LIMIT ?"
     params.append(min(limit, 5))

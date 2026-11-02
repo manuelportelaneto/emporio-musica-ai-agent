@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Architecture: Spec-Driven](https://img.shields.io/badge/architecture-spec--driven-emerald.svg)](SPEC.md)
-[![Tests: 25 Passed](https://img.shields.io/badge/tests-25%20passed-brightgreen.svg)](tests/)
+[![Tests: 30 Passed](https://img.shields.io/badge/tests-30%20passed-brightgreen.svg)](tests/)
 
 Autonomous, production-grade conversational AI assistant and telemetry engine engineered for **Empório da Música**, a traditional brick-and-mortar and digital musical instruments retailer in Campo Grande/MS (founded in 2008). 
 
@@ -133,7 +133,8 @@ emporio-musica-ai-agent/
 ├── tests/                        # Comprehensive test suite (pytest)
 │   ├── test_services.py          # Unit tests for catalog, orders, and policies
 │   ├── test_guardrails.py        # Unit tests for input/output defense layers
-│   └── test_audit_store.py       # Unit tests for persistence and telemetry HUD
+│   ├── test_audit_store.py       # Unit tests for persistence and telemetry HUD
+│   └── test_orchestrator.py      # Unit tests for agent core and tool calling
 ├── .env.example                  # Environment configuration template
 ├── .gitignore                    # Strict secrets & artifact filters
 ├── README.md                     # Project documentation & architecture
@@ -166,9 +167,11 @@ Adhering to strict technical evaluation guidelines, progress is deployed via fre
   - Implemented `src/storage/audit_store.py` (`conversation_history` and `execution_audit_logs`).
   - Implemented per-session latency profiling, token metrics aggregation, and HUD formatter.
   - Added unit tests in `tests/test_audit_store.py` (**25/25 tests passing**).
-- [ ] **Step 5: Agent Core with Native Tool Calling & Consultative Persona** (`feat`)
-  - Implement `src/config.py` (Groq / OpenAI / Ollama multi-provider support).
-  - Implement `src/orchestrator.py` with prompt binding and physical store invite directives.
+- [x] **Step 5: Agent Core with Native Tool Calling & Consultative Persona** (`feat`)
+  - Implemented `src/config.py` (Groq / OpenAI / Ollama multi-provider support).
+  - Implemented `src/orchestrator.py` with native tool bindings (`lookup_catalog`, `get_order_details`, `query_store_policy`).
+  - Implemented consultative selling persona with subtle Campo Grande physical store invitation guidelines.
+  - Added unit tests in `tests/test_orchestrator.py` (**30/30 tests passing**).
 - [ ] **Step 6: Rich Interactive CLI & Comprehensive Execution Scenarios** (`feat`)
   - Implement `src/cli.py` with Real-Time Observability HUD.
   - Execute and record the 5 mandatory business scenarios into `examples/`.
@@ -201,11 +204,16 @@ Adhering to strict technical evaluation guidelines, progress is deployed via fre
   └──────────────────────────────────────────────────────────────────────────────────┘
   ```
 
+### 6.4 Agent Core & Native Tool Calling (Step 5)
+* **Typed Tool Schemas (`TOOLS_SCHEMA`):** Exposes JSON Schema-compliant function definitions for `lookup_catalog`, `get_order_details`, and `query_store_policy` to Groq (`llama-3.3-70b-versatile`) and OpenAI (`gpt-4o-mini`).
+* **Consultative Persona:** Musically knowledgeable, friendly, and respectful ("fellow musician" persona). Natural invitations to visit the Campo Grande store (Rua 14 de Maio, 3200) to test timbre and ergonomics in person.
+* **Intelligent Dual-Execution Architecture:** If live LLM credentials are provided, runs native function calling with two-pass tool response synthesis. If running offline/test mode, falls back to deterministic intent routing while exercising the exact same backend tools and guardrails.
+
 ---
 
 ## 7. Test Suite & Verification
 
-The project includes automated unit tests for all backend services, business calculations, guardrails, and audit storage:
+The project includes automated unit tests for all backend services, business calculations, guardrails, audit storage, and orchestrator:
 
 ```bash
 # Activate virtual environment
@@ -215,7 +223,7 @@ source .venv/bin/activate
 pytest tests/ -v
 ```
 
-### Test Results Summary (25 Passed)
+### Test Results Summary (30 Passed)
 | Test Suite | Scope | Status |
 | :--- | :--- | :--- |
 | `TestCatalogService` | SQLite tables population, query matching, 5% PIX discount, non-cumulative promotions, installment tiers (12x/6x/3x) | ✅ Passed |
@@ -224,6 +232,7 @@ pytest tests/ -v
 | `TestInputGuardrails` | Brazilian CPF masking, Credit Card masking, accessory interception, instrument spec exception handling, prompt injection defense | ✅ Passed |
 | `TestOutputGuardrails` | Currency extraction, factual grounding verification against tool payload, hallucination detection, commercial tone modulation | ✅ Passed |
 | `TestAuditStore` | Conversation history persistence, audit telemetry logging, session metrics aggregation, Observability HUD formatting | ✅ Passed |
+| `TestOrchestrator` | Complete conversational turns, tool routing, accessory bypass, order tracking, store policy retrieval, and PII redaction | ✅ Passed |
 
 ---
 
