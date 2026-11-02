@@ -1,0 +1,20 @@
+# Core LLM & Framework
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+
+# Providers
+groq>=0.11.0
+openai>=1.40.0
+
+# PDF Parsing & Embeddings
+pypdf>=4.0.0
+fastembed>=0.3.0
+sentence-transformers>=2.2.0
+faiss-cpu>=1.7.4
+
+# CLI, Display & Observability
+rich>=13.7.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
