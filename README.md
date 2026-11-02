@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Architecture: Spec-Driven](https://img.shields.io/badge/architecture-spec--driven-emerald.svg)](SPEC.md)
-[![Tests: 21 Passed](https://img.shields.io/badge/tests-21%20passed-brightgreen.svg)](tests/)
+[![Tests: 25 Passed](https://img.shields.io/badge/tests-25%20passed-brightgreen.svg)](tests/)
 
 Autonomous, production-grade conversational AI assistant and telemetry engine engineered for **Empório da Música**, a traditional brick-and-mortar and digital musical instruments retailer in Campo Grande/MS (founded in 2008). 
 
@@ -132,7 +132,8 @@ emporio-musica-ai-agent/
 ├── examples/                     # Real execution scenarios & transcripts
 ├── tests/                        # Comprehensive test suite (pytest)
 │   ├── test_services.py          # Unit tests for catalog, orders, and policies
-│   └── test_guardrails.py        # Unit tests for input/output defense layers
+│   ├── test_guardrails.py        # Unit tests for input/output defense layers
+│   └── test_audit_store.py       # Unit tests for persistence and telemetry HUD
 ├── .env.example                  # Environment configuration template
 ├── .gitignore                    # Strict secrets & artifact filters
 ├── README.md                     # Project documentation & architecture
@@ -161,9 +162,10 @@ Adhering to strict technical evaluation guidelines, progress is deployed via fre
   - Implemented `src/guardrails/input_guards.py` (Deterministic Accessory Interceptor, PII Sanitizer for CPF/Cards, Injection Defense).
   - Implemented `src/guardrails/output_guards.py` (Factual grounding price verification & consultative tone modulation).
   - Created unit tests in `tests/test_services.py` and `tests/test_guardrails.py` (**21/21 tests passing**).
-- [ ] **Step 4: Dual-Layer Persistence & Telemetry HUD** (`feat`)
-  - Implement `src/storage/audit_store.py` (`conversation_history` and `execution_audit_logs`).
-  - Instrument per-turn latency profilers and token counters.
+- [x] **Step 4: Dual-Layer Persistence & Telemetry HUD** (`feat`)
+  - Implemented `src/storage/audit_store.py` (`conversation_history` and `execution_audit_logs`).
+  - Implemented per-session latency profiling, token metrics aggregation, and HUD formatter.
+  - Added unit tests in `tests/test_audit_store.py` (**25/25 tests passing**).
 - [ ] **Step 5: Agent Core with Native Tool Calling & Consultative Persona** (`feat`)
   - Implement `src/config.py` (Groq / OpenAI / Ollama multi-provider support).
   - Implement `src/orchestrator.py` with prompt binding and physical store invite directives.
@@ -186,11 +188,24 @@ Adhering to strict technical evaluation guidelines, progress is deployed via fre
 * **PII Redaction:** Brazilian CPFs (`\d{3}\.\d{3}\.\d{3}-\d{2}`) and credit card numbers are masked as `[CPF PROTEGIDO]` and `[CARTÃO PROTEGIDO]` before persistence.
 * **Factual Grounding Check:** Extracted currency numbers from LLM responses are verified against tool payloads. Hallucinations are flagged and recorded in audit logs.
 
+### 6.3 Dual-Layer Persistence & Observability HUD (Step 4)
+* **Decoupled Relational Schema (`emporio_records.db`):**
+  1. `conversation_history`: Stores customer-facing dialogue turns (`role`, `content`, `session_id`) for sliding-window context replay.
+  2. `execution_audit_logs`: Stores granular telemetry events (`TOOL_INVOCATION`, `GUARDRAIL_INTERCEPT`, `AGENT_RESPONSE`, `ERROR`), capturing input/output JSON payloads, latency in ms, prompt tokens, and completion tokens.
+* **Real-Time Observability HUD:** Below every conversational turn, the system outputs an executive telemetry card:
+  ```text
+  ┌─ [TELEMETRY & AUDIT HUD] ────────────────────────────────────────────────────────┐
+  │ ⚡ Latency: 412ms  |  🪙 Tokens: 184 (Prompt: 128 / Completion: 56)              │
+  │ 🛠️ Tool Invoked: lookup_catalog(query="Yamaha C40", in_stock_only=True)          │
+  │ 🛡️ Guardrails: Scope Passed | Factual Grounding: 100% Verified                   │
+  └──────────────────────────────────────────────────────────────────────────────────┘
+  ```
+
 ---
 
 ## 7. Test Suite & Verification
 
-The project includes unit tests for all backend services, business calculations, and guardrails:
+The project includes automated unit tests for all backend services, business calculations, guardrails, and audit storage:
 
 ```bash
 # Activate virtual environment
@@ -200,7 +215,7 @@ source .venv/bin/activate
 pytest tests/ -v
 ```
 
-### Test Results Summary (21 Passed)
+### Test Results Summary (25 Passed)
 | Test Suite | Scope | Status |
 | :--- | :--- | :--- |
 | `TestCatalogService` | SQLite tables population, query matching, 5% PIX discount, non-cumulative promotions, installment tiers (12x/6x/3x) | ✅ Passed |
@@ -208,6 +223,7 @@ pytest tests/ -v
 | `TestPolicyService` | Policy manual semantic search, store address (Rua 14 de Maio 3200), motoboy delivery rules | ✅ Passed |
 | `TestInputGuardrails` | Brazilian CPF masking, Credit Card masking, accessory interception, instrument spec exception handling, prompt injection defense | ✅ Passed |
 | `TestOutputGuardrails` | Currency extraction, factual grounding verification against tool payload, hallucination detection, commercial tone modulation | ✅ Passed |
+| `TestAuditStore` | Conversation history persistence, audit telemetry logging, session metrics aggregation, Observability HUD formatting | ✅ Passed |
 
 ---
 
