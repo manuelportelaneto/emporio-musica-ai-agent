@@ -289,14 +289,21 @@ pip install -r requirements.txt
 # Configure environment (optional, evaluator onboarding will prompt interactively)
 cp .env.example .env
 
-# Run interactive Evaluator CLI console
-python src/cli.py
+# Unified Single-Command Launch (auto-detects .venv and branches into CLI or Streamlit):
+./run.sh
 
-# Run Streamlit Web Application
-streamlit run app.py
+# Alternatively, run via Python 3:
+python3 main.py
+# or
+.venv/bin/python src/cli.py
+
+# Note on Interface Bifurcation:
+# During the onboarding screen (Screen 1), select:
+#   [1] to continue in the Terminal CLI
+#   [2] to automatically branch and open the Streamlit Web App in your browser
 
 # Generate/Export all 5 challenge scenario transcripts into examples/
-python scripts/generate_scenarios.py
+.venv/bin/python scripts/generate_scenarios.py
 ```
 
 ---

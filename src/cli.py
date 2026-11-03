@@ -7,7 +7,7 @@ import subprocess
 import sys
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 # Ensure project root is on sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -314,13 +314,17 @@ def run_cli() -> None:
 
     if target_choice == "2":
         console.print("\n[bold green]Launching Streamlit Web Application in browser...[/bold green]")
-        app_path = os.path.join(os.path.dirname(__file__), "..", "app.py")
-        if not os.path.exists(app_path):
-            console.print("[yellow]Note: Streamlit 'app.py' will be instantiated. Starting subprocess...[/yellow]")
+        app_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "app.py"))
+        env = os.environ.copy()
+        if api_key:
+            if provider == "groq":
+                env["GROQ_API_KEY"] = api_key
+            elif provider == "openai":
+                env["OPENAI_API_KEY"] = api_key
         try:
-            subprocess.run(["streamlit", "run", "app.py"], check=False)
-        except FileNotFoundError:
-            console.print("[bold red]Error: 'streamlit' command not found. Run: pip install streamlit[/bold red]")
+            subprocess.run([sys.executable, "-m", "streamlit", "run", app_path], env=env, check=False)
+        except Exception as e:
+            console.print(f"[bold red]Error launching Streamlit: {e}[/bold red]")
         return
 
     orchestrator = ConversationalOrchestrator()
