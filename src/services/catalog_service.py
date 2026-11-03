@@ -91,9 +91,23 @@ def lookup_catalog(
             "tem", "têm", "qual", "quais", "quanto", "custa", "preço", "valor",
             "mostrar", "me", "sobre", "olá", "ola", "oi", "bom", "dia", "boa", "tarde",
             "noite", "você", "voce", "vocês", "voces", "saber", "se", "favor", "porfavor",
-            "loja", "vende", "vendem", "disponível", "estoque"
+            "loja", "vende", "vendem", "disponível", "estoque", "legal", "beleza",
+            "entendi", "maravilha", "ok", "perfeito", "sim", "não", "nao", "só", "so"
         }
-        tokens = [w for w in re.findall(r"\w+", cleaned_query) if w not in stop_words]
+        raw_tokens = [w for w in re.findall(r"\w+", cleaned_query) if w not in stop_words]
+        plural_map = {
+            "guitarras": "guitarra",
+            "violoes": "violao",
+            "violões": "violão",
+            "baixos": "baixo",
+            "teclados": "teclado",
+            "pianos": "piano",
+            "baterias": "bateria",
+            "ukuleles": "ukulele",
+            "flautas": "flauta",
+            "saxofones": "sax",
+        }
+        tokens = [plural_map.get(w, w) for w in raw_tokens]
         if not tokens:
             tokens = [cleaned_query]
 

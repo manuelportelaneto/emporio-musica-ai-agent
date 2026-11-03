@@ -9,7 +9,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-from src.config import AppConfig, get_llm_client
+from src.config import AppConfig, get_llm_client, resolve_active_model
 from src.data_engine import PolicyVectorIndex, init_sqlite_engine
 from src.guardrails.input_guards import validate_input
 from src.guardrails.output_guards import validate_output
@@ -50,6 +50,12 @@ SYSTEM_PROMPT = """Você é o consultor de atendimento inteligente da Empório d
    - Ao receber saudações básicas (ex: 'oi', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'tudo bem?', 'como vai?'), responda exatamente como um colega músico e consultor humano faria: retribua o cumprimento de forma calorosa, simpática e educada, pergunte como a pessoa está e como você pode ajudá-la hoje no mundo dos instrumentos musicais.
    - NUNCA responda friamente ou roboticamente a um cumprimento.
    - NUNCA invente chamadas de ferramentas de catálogo para palavras de saudação como 'oi' ou 'olá'. Apenas responda naturalmente e se coloque à disposição para consultoria de instrumentos, promoções com 5% de desconto no PIX, parcelamento em até 12x, rastreio de pedidos ou dúvidas sobre a loja.
+9. **Produtos Indisponíveis ou Fora de Catálogo:**
+   - Se a busca no catálogo não retornar resultados (ex: itens como banjos, cavaquinhos, sanfonas, harpas ou marcas sem estoque), NUNCA invente instrumentos ou preços falsos! Seja transparente e atencioso: explique que a loja não possui aquele instrumento específico em catálogo/estoque no momento, cite as famílias que trabalhamos (violões, guitarras, baixos, teclas, sopros e percussão) e pergunte se o cliente tem interesse em alguma dessas alternativas.
+10. **Consultoria Contextual e Recomendação ("qual a melhor para mim?", "o que você recomenda?"):**
+   - Quando o cliente pedir recomendação ou perguntar "qual a melhor para mim?", "qual você indica?", "qual a diferença?", NÃO faça nova busca no banco com essas frases.
+   - **Atenção ao Contexto Imediato:** Baseie sua resposta estritamente no último instrumento ou opções que você acabou de apresentar no turno imediatamente anterior (ex: se acabou de listar a Fender Telecaster, PRS SE Custom 24 e Ibanez RG550, compare exatamente essas guitarras para o cliente!). NUNCA confunda com perguntas de acessórios que já foram respondidas e encerradas em turnos passados.
+   - Converse como um músico apaixonado: destaque as vantagens de cada modelo citado (timbre, versatilidade, tocabilidade) e pergunte o estilo e nível do cliente para ajudá-lo a escolher com segurança.
 """
 
 TOOLS_SCHEMA = [
@@ -415,13 +421,16 @@ class ConversationalOrchestrator:
         ) or bool(re.search(r"\b(\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4})\b", user_text))
 
         if is_greeting and not has_business_intent:
-            salutation = "Olá! Muito bom dia!"
             if "boa tarde" in lowered:
                 salutation = "Olá! Muito boa tarde!"
             elif "boa noite" in lowered:
                 salutation = "Olá! Muito boa noite!"
+            elif "bom dia" in lowered:
+                salutation = "Olá! Muito bom dia! Tudo ótimo por aqui, e com você?"
             elif "tudo bem" in lowered or "como vai" in lowered:
                 salutation = "Olá! Tudo ótimo por aqui, e com você?"
+            else:
+                salutation = "Olá! Seja muito bem-vindo(a)!"
 
             cust_name = session_state.get("customer_name")
             name_suffix = f", {cust_name}" if cust_name else ""
@@ -438,10 +447,71 @@ class ConversationalOrchestrator:
             return ans, [], [], 35, 75
         session_state = self.session_profiles.get(session_id, {})
 
-        # 1. Check for Phone Number / Customer Authentication Intent
-        phone_match = re.search(r"\b(\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4})\b", user_text)
+        # 1. Check for Out-of-Catalog or Non-Stocked Traditional Instruments (e.g. banjo, cavaquinho, sanfona)
+        out_of_catalog_instruments = {
+            r"\bbanjos?\b": "banjo",
+            r"\bcavaquinhos?\b": "cavaquinho",
+            r"\bcavacos?\b": "cavaquinho",
+            r"\bsanfonas?\b": "sanfona",
+            r"\bacordeons?\b": "acordeon",
+            r"\bacorde[ãa]os?\b": "acordeon",
+            r"\bharpas?\b": "harpa",
+            r"\bviolas?\s+caipiras?\b": "viola caipira",
+            r"\bgaitas?\b": "gaita",
+        }
+        for pat, item_name in out_of_catalog_instruments.items():
+            if re.search(pat, lowered):
+                ans = (
+                    f"No momento não temos {item_name} em nosso estoque. "
+                    f"Nosso catálogo atual é especializado em violões (nylon e aço), guitarras elétricas, "
+                    f"contrabaixos, teclados arranjadores, pianos digitais, baterias acústicas e eletrônicas, e ukuleles.\n\n"
+                    f"Você teria interesse em conhecer opções de alguma dessas famílias de instrumentos? "
+                    f"Ou, se preferir, podemos indicar lojas parceiras na região central de Campo Grande que trabalham com {item_name}!"
+                )
+                return ans, [], [], 30, 65
+
+        # 2. Check Contextual Advisory / Recommendation ("qual a melhor para mim?", "qual recomenda?")
+        advisory_patterns = [
+            r"qual\s+(é\s+)?(a\s+)?melhor",
+            r"qual\s+voc[êe]\s+(me\s+)?recomenda",
+            r"qual\s+voc[êe]\s+indica",
+            r"me\s+ajuda\s+a\s+escolher",
+            r"qual\s+a\s+diferen[çc]a",
+            r"o\s+que\s+voc[êe]\s+acha",
+            r"qual\s+(eu\s+)?devo\s+comprar",
+            r"qual\s+vale\s+mais\s+a\s+pena",
+        ]
+        if any(re.search(pat, lowered) for pat in advisory_patterns):
+            tags = session_state.get("affinity_tags", [])
+            if "guitarra" in tags or "guitarra" in lowered:
+                ans = (
+                    "Essa é uma excelente pergunta! Para escolher a guitarra perfeita para você, vale considerar o estilo musical que você mais gosta de tocar:\n\n"
+                    "• **Fender Telecaster Player Series:** É o ícone dos timbres limpos, definidos e estalados. Perfeita para Rock clássico, Blues, Funk, Country e MPB.\n"
+                    "• **PRS SE Custom 24:** Campeã de versatilidade, sustain e acabamento refinado. Atende com perfeição desde o Pop e Rock até timbres encorpados com humbucker.\n"
+                    "• **Ibanez RG550:** Focada em performance e alta velocidade. Braço ultrafino e microafinação, imbatível para Heavy Metal, Hard Rock e solos técnicos.\n\n"
+                    "Qual desses estilos tem mais a ver com você? Me conte sobre seus artistas favoritos que te indico o match perfeito!"
+                )
+            elif "violão" in tags or "violao" in lowered:
+                ans = (
+                    "Excelente dúvida! A escolha do violão ideal depende da pegada e do som que você procura:\n\n"
+                    "• **Cordas de Nylon (ex: Yamaha C40):** Braço mais largo e tensão mais macia nos dedos. É a recomendação número um para quem está começando, ou para MPB, Bossa Nova e peças clássicas.\n"
+                    "• **Cordas de Aço (ex: Yamaha F310 / Giannini GF-1R):** Timbre brilhante, encorpado e com alta projeção. Ideal para Pop, Sertanejo, Folk, Rock acústico e dedilhados modernos.\n\n"
+                    "Você prefere o conforto acústico do nylon ou o brilho e volume das cordas de aço?"
+                )
+            else:
+                ans = (
+                    "Excelente pergunta! Como músico e consultor, para te direcionar para o melhor instrumento com máxima precisão:\n\n"
+                    "1. **Qual é o seu nível musical?** (iniciante, intermediário ou já toca há algum tempo?)\n"
+                    "2. **Qual gênero musical você mais quer tocar?** (Rock, Sertanejo, MPB, Pop, Metal, Clássico...)\n"
+                    "3. **Você tem uma faixa de investimento em mente?**\n\n"
+                    "Com esses detalhes eu consigo te recomendar a melhor opção com o maior custo-benefício e simular as parcelas em 12x ou o desconto de 5% à vista no PIX!"
+                )
+            return ans, [], [], 35, 95
+
+        # 3. Check for Phone Number / Customer Authentication Intent
+        phone_match = re.search(r"(?:\b|\()(\d{2}\)?\s*9?\d{4}[-\s]?\d{4})\b", user_text) or re.search(r"\b(\d{10,11})\b", user_text)
         if phone_match or any(w in lowered for w in ["meu telefone", "meu contato", "me cadastrar", "meu nome é"]):
-            phone_val = phone_match.group(1) if phone_match else "67998123456"
+            phone_val = phone_match.group(0) if phone_match else "67998123456"
             # Extract potential customer name
             name_val = "Cliente Empório"
             for sample in ["lucas", "ana", "pedro", "mariana", "rafael", "juliana", "thiago", "fernanda"]:
@@ -473,7 +543,7 @@ class ConversationalOrchestrator:
                 )
                 return ans, tools_called, tool_payloads, 115, 65
 
-        # 2. Check order tracking intent
+        # 4. Check order tracking intent
         if any(w in lowered for w in ["pedido", "rastreio"]):
             order_id = None
             id_match = re.search(r"\bpedido\s*#?(\d+)\b", lowered) or re.search(r"\b(\d{1,4})\b", lowered)
@@ -509,30 +579,54 @@ class ConversationalOrchestrator:
                 )
                 return ans, tools_called, tool_payloads, 90, 45
 
-        # 3. Check instrument / catalog search intent
+        # 5. Check instrument / catalog search intent with smart category normalization
+        category_aliases = {
+            "guitarras": ("Guitarras", "guitarra"),
+            "guitarra": ("Guitarras", "guitarra"),
+            "violões": ("Violões", "violão"),
+            "violoes": ("Violões", "violão"),
+            "violão": ("Violões", "violão"),
+            "violao": ("Violões", "violão"),
+            "baixos": ("Baixos", "baixo"),
+            "baixo": ("Baixos", "baixo"),
+            "contrabaixos": ("Baixos", "baixo"),
+            "contrabaixo": ("Baixos", "baixo"),
+            "teclados": ("Teclados e Pianos", "teclado"),
+            "teclado": ("Teclados e Pianos", "teclado"),
+            "pianos": ("Teclados e Pianos", "piano"),
+            "piano": ("Teclados e Pianos", "piano"),
+            "baterias": ("Baterias e Percussão", "bateria"),
+            "bateria": ("Baterias e Percussão", "bateria"),
+            "ukuleles": ("Ukuleles", "ukulele"),
+            "ukulele": ("Ukuleles", "ukulele"),
+        }
+
         brands = [
             "yamaha", "tagima", "giannini", "fender", "roland", "casio",
             "shelby", "kalani", "kala", "rozini", "ibanez", "epiphone",
             "strinberg", "korg"
         ]
-        has_instrument = any(b in lowered for b in brands) or any(
-            i in lowered for i in [
-                "violão", "violao", "guitarra", "baixo", "teclado", "piano",
-                "bateria", "ukulele", "flauta", "sax"
-            ]
-        )
 
-        if has_instrument:
-            query_term = user_text
-            for brand in brands:
-                if brand in lowered:
-                    m = re.search(rf"\b{brand}\s*([\w\-]+)?", lowered)
-                    if m:
-                        query_term = m.group(0)
-                    break
+        matched_category = None
+        clean_query = None
 
-            res = self._execute_tool("lookup_catalog", {"query": query_term, "in_stock_only": True})
-            tools_called.append(f"lookup_catalog(query='{query_term}')")
+        for alias, (cat_name, q_val) in category_aliases.items():
+            if re.search(rf"\b{alias}\b", lowered):
+                matched_category = cat_name
+                clean_query = q_val
+                break
+
+        for brand in brands:
+            if re.search(rf"\b{brand}\b", lowered):
+                clean_query = brand
+                break
+
+        if clean_query or matched_category:
+            res = self._execute_tool(
+                "lookup_catalog",
+                {"query": clean_query, "category": matched_category, "in_stock_only": True},
+            )
+            tools_called.append(f"lookup_catalog(query='{clean_query}', category='{matched_category}')")
             tool_payloads.append(res)
 
             if res:
@@ -550,6 +644,14 @@ class ConversationalOrchestrator:
                     f"Qual desses modelos chama mais sua atenção? Posso te detalhar as madeiras, a tocabilidade ou simular outro plano de parcelamento."
                 )
                 return ans, tools_called, tool_payloads, 140, 85
+            else:
+                cat_desc = matched_category or clean_query or "itens"
+                ans = (
+                    f"No momento não encontramos modelos disponíveis para '{cat_desc}' em estoque. "
+                    f"Nosso estoque se renova semanalmente com instrumentos de cordas, teclas, sopros e percussão. "
+                    f"Gostaria de ver opções em outra categoria ou marca?"
+                )
+                return ans, tools_called, tool_payloads, 80, 45
 
         # 4. Check payment questions
         if any(w in lowered for w in ["pix", "cartão", "cartao", "parcelar", "parcela", "parcelamento", "pagamento"]):
@@ -610,11 +712,12 @@ class ConversationalOrchestrator:
             return ans, tools_called, tool_payloads, 140, 85
         else:
             ans = (
-                "Não encontrei instrumentos com esses termos exatos no momento. "
-                "Nosso catálogo é focado exclusivamente em instrumentos musicais (cordas, teclas, sopros e percussão). "
-                "Gostaria de ver opções de alguma categoria ou marca específica?"
+                "Entendi! Como consultor da Empório da Música, estou aqui para te ajudar no que for preciso. "
+                "Você gostaria de ver opções em instrumentos de cordas (violões e guitarras), teclas (pianos e teclados), "
+                "baterias ou sopros? Ou se preferir, posso te orientar sobre formas de pagamento (5% de desconto no PIX e até 12x sem juros), "
+                "rastreamento de pedidos ou cálculo de frete!"
             )
-            return ans, tools_called, tool_payloads, 80, 40
+            return ans, tools_called, tool_payloads, 80, 45
 
     def process_turn(self, session_id: str, user_message: str) -> OrchestratorResponse:
         """Execute a full conversational turn with guardrails, tools, and telemetry."""
@@ -719,7 +822,7 @@ class ConversationalOrchestrator:
                     messages.append({"role": h["role"], "content": h["content"]})
                 messages.append({"role": "user", "content": sanitized_input})
 
-                model_name = self.model or AppConfig.get_model(self.provider)
+                model_name = resolve_active_model(self.provider, self.llm_client, self.model)
                 temp = 0.1
 
                 response = self.llm_client.chat.completions.create(
@@ -728,6 +831,7 @@ class ConversationalOrchestrator:
                     tools=TOOLS_SCHEMA,
                     tool_choice="auto",
                     temperature=temp,
+                    max_tokens=AppConfig.MAX_OUTPUT_TOKENS,
                 )
 
                 choice = response.choices[0]
@@ -771,11 +875,31 @@ class ConversationalOrchestrator:
                             status="SUCCESS",
                         )
 
+                        if t_name == "lookup_catalog" and (t_result == [] or t_result is None):
+                            tool_content = json.dumps(
+                                {
+                                    "total_found": 0,
+                                    "products": [],
+                                    "message": f"Nenhum produto encontrado para o termo de busca '{t_args.get('query', '')}'. O produto não consta no catálogo ou está sem estoque no momento.",
+                                    "available_categories": [
+                                        "Guitarras",
+                                        "Violões",
+                                        "Baixos",
+                                        "Teclados e Pianos",
+                                        "Baterias e Percussão",
+                                        "Ukuleles",
+                                    ],
+                                },
+                                ensure_ascii=False,
+                            )
+                        else:
+                            tool_content = json.dumps(t_result, ensure_ascii=False)
+
                         messages.append(
                             {
                                 "role": "tool",
                                 "tool_call_id": tc.id,
-                                "content": json.dumps(t_result, ensure_ascii=False),
+                                "content": tool_content,
                             }
                         )
 
@@ -784,6 +908,7 @@ class ConversationalOrchestrator:
                         model=model_name,
                         messages=messages,
                         temperature=temp,
+                        max_tokens=AppConfig.MAX_OUTPUT_TOKENS,
                     )
                     raw_response_text = second_resp.choices[0].message.content or ""
                     prompt_tokens += getattr(second_resp.usage, "prompt_tokens", 0)

@@ -21,8 +21,9 @@ class AppConfig:
 
     # Groq Settings
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
-    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
     GROQ_TEMPERATURE: float = float(os.getenv("GROQ_TEMPERATURE", "0.1"))
+    MAX_OUTPUT_TOKENS: int = int(os.getenv("MAX_OUTPUT_TOKENS", "500"))
 
     # OpenAI Settings
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
@@ -194,6 +195,33 @@ class AppConfig:
 
 # Pre-load session config if present
 AppConfig.load_session_config()
+
+
+def resolve_active_model(provider: str, client: Any, requested_model: Optional[str] = None) -> str:
+    """Resolve the best working model for the selected provider with fallback discovery."""
+    prov = provider.lower().strip()
+    req = requested_model or AppConfig.get_model(prov)
+
+    if prov == "groq" and client is not None:
+        try:
+            available = [m.id for m in client.models.list().data]
+            if req in available:
+                return req
+            # Priority fallback list for Groq tool calling models
+            priority_fallbacks = [
+                "openai/gpt-oss-120b",
+                "openai/gpt-oss-20b",
+                "qwen/qwen3.8-27b",
+            ]
+            for candidate in priority_fallbacks:
+                if candidate in available:
+                    AppConfig.GROQ_MODEL = candidate
+                    return candidate
+        except Exception:
+            pass
+        return AppConfig.GROQ_MODEL
+
+    return req
 
 
 def get_llm_client(

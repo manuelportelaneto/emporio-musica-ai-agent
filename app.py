@@ -37,7 +37,7 @@ cached_config = AppConfig.load_session_config()
 
 PROVIDER_MAP = {
     "Deterministic (Offline / Default)": "offline",
-    "Groq Cloud (llama-3.3-70b-versatile)": "groq",
+    "Groq Cloud (Ultra-Fast Native LLM)": "groq",
     "OpenAI (gpt-4o-mini)": "openai",
     "Google Gemini (gemini-2.0-flash)": "gemini",
     "DeepSeek (deepseek-chat)": "deepseek",
@@ -173,7 +173,7 @@ with st.sidebar:
 
     # Engine connection status pill
     if st.session_state.orchestrator.is_llm_connected():
-        st.success(f"🟢 Connected to {current_prov_code.upper()} LLM")
+        st.success(f"🟢 Connected: {current_prov_code.upper()} ({st.session_state.orchestrator.model})")
     elif current_prov_code != "offline":
         st.warning(f"🟡 {current_prov_code.upper()} awaiting valid key")
 

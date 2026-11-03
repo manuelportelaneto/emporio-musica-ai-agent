@@ -155,6 +155,52 @@ def check_prompt_injection(text: str) -> bool:
     return False
 
 
+def build_accessory_refusal(text: str) -> str:
+    """Build a natural, contextual refusal message mentioning the asked accessory."""
+    lowered = text.lower()
+    mapping = {
+        "baqueta": "baquetas",
+        "baquetas": "baquetas",
+        "corda": "cordas",
+        "cordas": "cordas e encordoamentos",
+        "encordoamento": "encordoamentos",
+        "palheta": "palhetas",
+        "palhetas": "palhetas",
+        "cabo": "cabos e conectores",
+        "cabos": "cabos",
+        "pedal": "pedais de efeito",
+        "pedais": "pedais de efeito",
+        "pedaleira": "pedaleiras",
+        "pedaleiras": "pedaleiras",
+        "amplificador": "amplificadores",
+        "amplificadores": "amplificadores",
+        "afinador": "afinadores",
+        "afinadores": "afinadores",
+        "capa": "capas e bags",
+        "capas": "capas e bags",
+        "bag": "bags e cases",
+        "case": "cases",
+        "correia": "correias",
+        "suporte": "suportes",
+        "boquilha": "boquilhas",
+        "pele": "peles de bateria",
+    }
+    found = []
+    for k, v in mapping.items():
+        if re.search(rf"\b{k}\b", lowered):
+            if v not in found:
+                found.append(v)
+    if found:
+        accessory_str = ", ".join(found)
+        return (
+            f"Na Empório da Música somos especialistas exclusivos em instrumentos musicais completos! "
+            f"Não comercializamos acessórios ou peças avulsas como {accessory_str}. "
+            f"Se você estiver em Campo Grande, podemos indicar lojas parceiras na região central (Rua 14 de Maio). "
+            f"Posso te ajudar com a escolha de algum instrumento do nosso catálogo hoje? 🎵"
+        )
+    return ACCESSORY_REFUSAL_MESSAGE
+
+
 def validate_input(user_input: str) -> InputGuardResult:
     """Apply Layer 1 defense: PII masking, injection detection, and accessory interceptor.
 
