@@ -321,44 +321,140 @@ Rather than delegating unstructured prompt tasks to an AI, the workflow enforced
 
 ---
 
-## 10. Quickstart Guide
+## 10. Quickstart Guide (Multi-Platform: Linux, macOS & Windows)
 
 ### Prerequisites
-* Python 3.10+
-* Git
-* Groq API Key (recommended for ultra-low latency) or OpenAI API Key (optional: offline deterministic engine included)
+* **Python:** Version 3.10, 3.11, or 3.12 installed.
+* **Git:** For cloning and version control.
+* **API Key (Optional):** Groq API Key (recommended for ultra-low latency) or OpenAI / Gemini / DeepSeek. *A full offline deterministic engine is included out-of-the-box with zero API keys required.*
 
-### Setup
+---
+
+### Step 1: Clone the Repository
 ```bash
-# Clone the repository
 git clone https://github.com/manuelportelaneto/emporio-musica-ai-agent.git
 cd emporio-musica-ai-agent
+```
 
-# Create and activate virtual environment
+---
+
+### Step 2: Virtual Environment Setup & Installation
+
+#### 🐧 Linux & 🍎 macOS (Bash / Zsh)
+```bash
+# Create virtual environment
 python3 -m venv .venv
+
+# Activate virtual environment
 source .venv/bin/activate
 
-# Install dependencies
+# Install required dependencies
+pip install --upgrade pip
 pip install -r requirements.txt
 
-# Configure environment (optional, evaluator onboarding will prompt interactively)
+# (Optional) Copy environment template
 cp .env.example .env
+```
 
-# Unified Single-Command Launch (auto-detects .venv and branches into CLI or Streamlit):
-./run.sh
+#### 🪟 Windows (PowerShell or Command Prompt)
+> [!TIP]
+> On Windows, we recommend using **PowerShell** or **Windows Terminal** with UTF-8 enabled for optimal box-drawing character display.
 
-# Alternatively, run via Python 3:
-python3 main.py
-# or
-.venv/bin/python src/cli.py
+* **Via PowerShell:**
+  ```powershell
+  # Create virtual environment
+  python -m venv .venv
 
-# Note on Interface Bifurcation:
-# During the onboarding screen (Screen 1), select:
-#   [1] to continue in the Terminal CLI
-#   [2] to automatically branch and open the Streamlit Web App in your browser
+  # Activate virtual environment
+  # Note: if script execution is disabled, run: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+  .venv\Scripts\Activate.ps1
 
-# Generate/Export all 5 challenge scenario transcripts into examples/
-.venv/bin/python scripts/generate_scenarios.py
+  # Install required dependencies
+  python -m pip install --upgrade pip
+  pip install -r requirements.txt
+
+  # (Optional) Copy environment template
+  copy .env.example .env
+  ```
+
+* **Via Command Prompt (CMD):**
+  ```cmd
+  # Create and activate virtual environment
+  python -m venv .venv
+  .venv\Scripts\activate.bat
+
+  # Install required dependencies
+  pip install --upgrade pip
+  pip install -r requirements.txt
+
+  # (Optional) Copy environment template
+  copy .env.example .env
+  ```
+
+---
+
+### Step 3: Launching the Application
+
+The project provides three convenient ways to launch, fully adapted for each operating system:
+
+#### Option A: Unified Launcher (Recommended)
+Automatically detects your virtual environment, sets UTF-8 encoding, and starts the Evaluator Onboarding:
+* **Linux & macOS:**
+  ```bash
+  chmod +x run.sh
+  ./run.sh
+  ```
+* **Windows (CMD / PowerShell / Explorer):**
+  ```cmd
+  run.bat
+  ```
+  *(Or simply double-click `run.bat` in Windows File Explorer)*
+
+#### Option B: Universal Python Entrypoint (All Platforms)
+Works identically across Linux, macOS, and Windows:
+```bash
+python main.py
+```
+*(On Linux/macOS, you can also use `python3 main.py` or `.venv/bin/python main.py`)*
+
+#### Option C: Direct Streamlit Web Console Launch
+To bypass the CLI and open the Visual Observability Console directly in your browser:
+```bash
+streamlit run app.py
+```
+
+> [!NOTE]
+> **Interface Bifurcation in Onboarding (Screen 1):**
+> When starting via `main.py` or `./run.sh` / `run.bat`, the Evaluator Setup allows you to choose:
+> - `[1]` to continue in the interactive **Rich Terminal CLI**
+> - `[2]` to automatically branch and launch the **Streamlit Web Application** in your default web browser.
+
+---
+
+### Step 4: Verification & Automated Tests
+
+To run the automated test suite across any operating system:
+
+```bash
+# Linux / macOS
+pytest tests/ -v
+
+# Windows (PowerShell / CMD)
+pytest tests/ -v
+```
+
+All **45 tests** across catalog services, order tracking, CDC Art. 49 returns, multi-layer guardrails, PII masking, and telemetry persistence will execute and report green (`45 passed`).
+
+---
+
+### Step 5: Regenerating Challenge Scenarios (Optional)
+To re-execute and export all 5 challenge conversation transcripts into `examples/`:
+```bash
+# Linux / macOS
+python3 scripts/generate_scenarios.py
+
+# Windows
+python scripts\generate_scenarios.py
 ```
 
 ---
