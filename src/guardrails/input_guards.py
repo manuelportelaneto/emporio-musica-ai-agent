@@ -47,8 +47,56 @@ INSTRUMENT_SPEC_EXCEPTIONS = [
     r"instrumentos? de cordas?",
 ]
 
-# Regex for Brazilian CPF: XXX.XXX.XXX-XX or 11 consecutive digits
-CPF_REGEX = re.compile(r"\b(\d{3}\.\d{3}\.\d{3}-\d{2}|\d{11})\b")
+# Valid Brazilian Area Codes (DDDs)
+VALID_BRAZILIAN_DDDS = {
+    "11", "12", "13", "14", "15", "16", "17", "18", "19",
+    "21", "22", "24", "27", "28",
+    "31", "32", "33", "34", "35", "37", "38",
+    "41", "42", "43", "44", "45", "46", "47", "48", "49",
+    "51", "53", "54", "55",
+    "61", "62", "63", "64", "65", "66", "67", "68", "69",
+    "71", "73", "74", "75", "77", "79",
+    "81", "82", "83", "84", "85", "86", "87", "88", "89",
+    "91", "92", "93", "94", "95", "96", "97", "98", "99",
+}
+
+
+def is_brazilian_phone(text: str) -> bool:
+    """Verify if numeric sequence represents a valid Brazilian mobile or landline."""
+    clean = re.sub(r"\D", "", str(text))
+    # 11 digits: DDD + 9 + 8 digits (mobile)
+    if len(clean) == 11 and clean[:2] in VALID_BRAZILIAN_DDDS and clean[2] == "9":
+        return True
+    # 10 digits: DDD + 8 digits (landline)
+    if len(clean) == 10 and clean[:2] in VALID_BRAZILIAN_DDDS and clean[2] in "2345":
+        return True
+    return False
+
+
+def is_valid_cpf_checksum(cpf: str) -> bool:
+    """Verify Brazilian CPF modulo-11 checksum."""
+    digits = re.sub(r"\D", "", str(cpf))
+    if len(digits) != 11 or digits == digits[0] * 11:
+        return False
+    s1 = sum(int(digits[i]) * (10 - i) for i in range(9))
+    d1 = 11 - (s1 % 11)
+    d1 = 0 if d1 >= 10 else d1
+    if int(digits[9]) != d1:
+        return False
+    s2 = sum(int(digits[i]) * (11 - i) for i in range(10))
+    d2 = 11 - (s2 % 11)
+    d2 = 0 if d2 >= 10 else d2
+    return int(digits[10]) == d2
+
+
+# Regex for Brazilian Formatted CPF: XXX.XXX.XXX-XX
+FORMATTED_CPF_REGEX = re.compile(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b")
+
+# Regex for Explicit CPF declaration (e.g., "CPF: 12345678900", "meu CPF é 12345678900")
+EXPLICIT_CPF_REGEX = re.compile(r"(?i)\b(?:cpf|documento)\b[:\s=]*(\d{3}\.?\d{3}\.?\d{3}-?\d{2}|\d{11})\b")
+
+# Regex for Standalone 11-digit numbers
+RAW_11_DIGIT_REGEX = re.compile(r"\b\d{11}\b")
 
 # Regex for Credit Card numbers: 13 to 19 digits with optional spaces/dashes
 CREDIT_CARD_REGEX = re.compile(r"\b(?:\d[ -]*?){13,19}\b")
@@ -78,7 +126,7 @@ class InputGuardResult:
 
 
 def mask_pii(text: str) -> Tuple[str, bool]:
-    """Detect and mask Brazilian CPFs and credit card numbers.
+    """Detect and mask Brazilian CPFs and credit card numbers while strictly preserving valid phone numbers.
 
     Returns:
         Tuple of (sanitized_text, pii_detected).
@@ -86,7 +134,7 @@ def mask_pii(text: str) -> Tuple[str, bool]:
     pii_found = False
     sanitized = text
 
-    # Mask credit cards first (since they are longer sequences)
+    # 1. Mask credit cards first (since they are longer digit sequences)
     def mask_cc(match: re.Match) -> str:
         nonlocal pii_found
         raw_digits = re.sub(r"\D", "", match.group(0))
@@ -97,17 +145,41 @@ def mask_pii(text: str) -> Tuple[str, bool]:
 
     sanitized = CREDIT_CARD_REGEX.sub(mask_cc, sanitized)
 
-    # Mask CPF
-    def mask_cpf(match: re.Match) -> str:
+    # 2. Mask explicitly formatted CPFs (XXX.XXX.XXX-XX)
+    def mask_formatted_cpf(match: re.Match) -> str:
         nonlocal pii_found
-        raw = match.group(0)
-        digits = re.sub(r"\D", "", raw)
-        if len(digits) == 11:
+        pii_found = True
+        return "[CPF PROTEGIDO]"
+
+    sanitized = FORMATTED_CPF_REGEX.sub(mask_formatted_cpf, sanitized)
+
+    # 3. Mask explicit CPF declarations (e.g. "CPF: 12345678900", "meu CPF é 12345678900")
+    def mask_explicit_cpf(match: re.Match) -> str:
+        nonlocal pii_found
+        pii_found = True
+        return "[CPF PROTEGIDO]"
+
+    sanitized = EXPLICIT_CPF_REGEX.sub(mask_explicit_cpf, sanitized)
+
+    # 4. Handle standalone unformatted 11-digit numbers:
+    # Disambiguate between Brazilian Phone Number and raw CPF
+    def mask_raw_11(match: re.Match) -> str:
+        nonlocal pii_found
+        raw_val = match.group(0)
+        digits = re.sub(r"\D", "", raw_val)
+
+        # If it represents a valid Brazilian mobile or landline, preserve it as a business phone!
+        if is_brazilian_phone(digits):
+            return raw_val
+
+        # If it's a valid CPF checksum and not a phone, mask it
+        if is_valid_cpf_checksum(digits):
             pii_found = True
             return "[CPF PROTEGIDO]"
-        return raw
 
-    sanitized = CPF_REGEX.sub(mask_cpf, sanitized)
+        return raw_val
+
+    sanitized = RAW_11_DIGIT_REGEX.sub(mask_raw_11, sanitized)
 
     return sanitized, pii_found
 

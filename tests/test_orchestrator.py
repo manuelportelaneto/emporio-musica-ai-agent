@@ -71,6 +71,15 @@ class TestOrchestrator:
         assert "Lucas" in sess["customer_name"]
         assert sess["customer_id"] == 1
 
+    def test_raw_phone_digits_authentication_not_blocked_as_cpf(self, orchestrator):
+        session = "session-test-raw-phone"
+        # User provides 11 consecutive numeric digits as requested by the store
+        resp = orchestrator.process_turn(session, "67998123456")
+
+        assert "[CPF PROTEGIDO]" not in resp.response_text
+        assert any("authenticate_or_register_customer" in t for t in resp.tools_invoked)
+        assert "Lucas" in resp.response_text or "autenticada" in resp.response_text
+
     def test_order_tracking_flow(self, orchestrator):
         session = "session-test-ord"
         resp = orchestrator.process_turn(session, "Qual o status do pedido #1?")

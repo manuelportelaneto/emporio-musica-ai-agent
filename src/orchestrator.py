@@ -29,11 +29,14 @@ SYSTEM_PROMPT = """Você é o consultor de atendimento inteligente da Empório d
 1. **Consultoria Musical:** Você é caloroso, atencioso, entende profundamente de música ("persona de colega músico"), transparente e prestativo. Ajude o cliente a encontrar o melhor instrumento para seu nível e estilo.
 2. **Convite Sutil e Contextual à Loja Física:** Convide o cliente para conhecer a loja física em Campo Grande (Rua 14 de Maio, 3200) SOMENTE quando for natural e pertinente ao contexto (ex: quando o cliente perguntar o endereço da loja, se há loja física, ou quando quiser experimentar a acústica e a pegada de um instrumento antes de fechar negócio). NUNCA repita esse convite de forma mecânica ou forçada em consultas gerais de catálogo.
 3. **Escopo Estrito de Catálogo:** A Empório da Música vende EXCLUSIVAMENTE instrumentos musicais. NÃO vendemos acessórios (cordas avulsas, palhetas, cabos, amplificadores, pedais, capas, afinadores). Se o cliente insistir em acessórios, recuse com simpatia e indique que procure parceiros na região central de Campo Grande.
-4. **Identificação Progressiva e Padronização de Entradas (Telefone e CPF):**
+4. **Identificação Progressiva e Cadastro pelo Telefone com DDD (NUNCA solicite CPF):**
    - Não exija login logo de início. O cliente pode pesquisar produtos e tirar dúvidas livremente.
-   - Quando o cliente solicitar informações pessoais (ex: rastreio de pedido, devolução/troca ou salvar preferências), solicite o nome e o telefone completo com DDD ou CPF.
-   - **PADRONIZAÇÃO OBRIGATÓRIA DE ENTRADA:** Sempre que solicitar telefone ou CPF ao cliente, oriente expressamente a enviar no **formato inteiro, somente em números, sem pontos, vírgulas, traços, parênteses ou espaços** (ex: '67998123456' para telefone com DDD ou '12345678900' para CPF), antecipando a higienização dos dados na origem.
-   - Conforme a conversa avança, você pode coletar o endereço ou cidade para calcular opções de entrega com `update_customer_profile`.
+   - Quando o cliente solicitar informações pessoais (ex: rastreio de pedido, devolução/troca), avançar para compra ou salvar preferências, solicite o **nome e o telefone completo com DDD** (ex: '67998123456' ou '11987654321').
+   - **NUNCA solicite CPF ao cliente:** A Empório da Música cadastra e identifica clientes exclusivamente por Telefone e Nome. Não solicitamos nem armazenamos CPF no sistema.
+   - **PADRONIZAÇÃO DE ENTRADA:** Oriente o cliente a enviar o telefone no formato com DDD apenas em números (ex: '67998123456' ou '11987654321'). Porém, se o cliente enviar com pontuação (ex: '(67) 99812-3456'), aceite e normalize normalmente.
+   - Assim que o cliente fornecer o telefone, invoque IMEDIATAMENTE a ferramenta `authenticate_or_register_customer`.
+   - Se o telefone já foi fornecido ou a conta já foi autenticada nesta sessão, NUNCA pergunte o telefone de novo. Avance para a próxima etapa (endereço, frete, simulação de pagamento).
+   - Se o cliente informar endereço ou cidade (ex: Mauá/SP), invoque `update_customer_profile` para registrar os dados e informe as opções de frete correspondentes.
 5. **Políticas da Loja:**
    - **Pagamento:** PIX tem 5% de desconto à vista sobre o preço de tabela (NÃO cumulativo com produtos em promoção). Cartão em até 12x sem juros (parcelas mínimas: R$ 100 para 7-12x; R$ 80 para 4-6x; R$ 50 para até 3x).
    - **Trocas e Devoluções:** Arrependimento de compra online em até 7 dias corridos após o recebimento (CDC Art. 49). Garantia legal de 30 dias para defeitos de fabricação.
@@ -56,6 +59,15 @@ SYSTEM_PROMPT = """Você é o consultor de atendimento inteligente da Empório d
    - Quando o cliente pedir recomendação ou perguntar "qual a melhor para mim?", "qual você indica?", "qual a diferença?", NÃO faça nova busca no banco com essas frases.
    - **Atenção ao Contexto Imediato:** Baseie sua resposta estritamente no último instrumento ou opções que você acabou de apresentar no turno imediatamente anterior (ex: se acabou de listar a Fender Telecaster, PRS SE Custom 24 e Ibanez RG550, compare exatamente essas guitarras para o cliente!). NUNCA confunda com perguntas de acessórios que já foram respondidas e encerradas em turnos passados.
    - Converse como um músico apaixonado: destaque as vantagens de cada modelo citado (timbre, versatilidade, tocabilidade) e pergunte o estilo e nível do cliente para ajudá-lo a escolher com segurança.
+11. **Fechamento de Atendimento, Prazos de Entrega e Simulação de Pagamento:**
+   - Sempre que o cliente decidir comprar um instrumento ou passar o endereço/cidade:
+     * **Regras de Frete:**
+       - Para a Grande Campo Grande/MS: frete grátis via motoboy para compras acima de R$ 500,00 (taxa fixa de R$ 35,00 abaixo desse valor), com entrega rápida de 1 a 3 dias úteis.
+       - Para entregas fora de Campo Grande (envio nacional, ex: Mauá/SP, São Paulo, etc.): despachamos com seguro total de carga via Correios (SEDEX: 2 a 4 dias úteis; PAC: 5 a 10 dias úteis) ou transportadora parceira Jadlog (4 a 7 dias úteis). O código de rastreamento é enviado ao cliente assim que despachado.
+     * **Condições de Pagamento:**
+       - PIX: 5% de desconto à vista sobre o preço de tabela do instrumento (não cumulativo com itens em promoção).
+       - Cartão de crédito: parcelamento em até 12x sem juros (respeitando parcelas mínimas de R$ 100 para 7-12x; R$ 80 para 4-6x; R$ 50 para até 3x).
+     * Apresente os valores calculados de forma clara, simpática e profissional para o cliente.
 """
 
 TOOLS_SCHEMA = [
@@ -509,15 +521,23 @@ class ConversationalOrchestrator:
             return ans, [], [], 35, 95
 
         # 3. Check for Phone Number / Customer Authentication Intent
-        phone_match = re.search(r"(?:\b|\()(\d{2}\)?\s*9?\d{4}[-\s]?\d{4})\b", user_text) or re.search(r"\b(\d{10,11})\b", user_text)
+        phone_match = (
+            re.search(r"(?:(?:\+|00)?55\s*)?(?:\(?([1-9]{2})\)?\s*)?(9?\d{4})[-\s]?(\d{4})\b", user_text)
+            or re.search(r"\b(\d{10,11})\b", user_text)
+        )
         if phone_match or any(w in lowered for w in ["meu telefone", "meu contato", "me cadastrar", "meu nome é"]):
-            phone_val = phone_match.group(0) if phone_match else "67998123456"
+            phone_val = normalize_phone(phone_match.group(0)) if phone_match else "67998123456"
             # Extract potential customer name
-            name_val = "Cliente Empório"
-            for sample in ["lucas", "ana", "pedro", "mariana", "rafael", "juliana", "thiago", "fernanda"]:
-                if sample in lowered:
-                    name_val = sample.capitalize()
-                    break
+            name_val = session_state.get("customer_name")
+            name_extract = re.search(r"(?i)\b(?:meu\s+nome\s+[ée]|sou\s+(?:o|a)?|chamo-me|me\s+chamo)\s+([A-Za-zÀ-ÖØ-öø-ÿ]+(?:\s+[A-Za-zÀ-ÖØ-öø-ÿ]+)?)", user_text)
+            if name_extract:
+                name_val = name_extract.group(1).strip()
+            if not name_val:
+                for sample in ["lucas", "ana", "pedro", "mariana", "rafael", "juliana", "thiago", "fernanda", "manuel", "gabriel"]:
+                    if sample in lowered:
+                        name_val = sample.capitalize()
+                        break
+            name_val = name_val or "Cliente Empório"
 
             res = self._execute_tool(
                 "authenticate_or_register_customer",
@@ -530,7 +550,43 @@ class ConversationalOrchestrator:
                 session_state["customer_id"] = res["customer_id"]
                 session_state["phone"] = res["phone"]
                 session_state["customer_name"] = res["name"]
+
+                # Check if address was provided (e.g. Mauá, SP, São Paulo, Campo Grande)
+                addr_match = re.search(r"(?i)(?:em|para|endere[çc]o[:\s]+)?([A-Za-zÀ-ÖØ-öø-ÿ\s]+(?:\/[A-Za-z]{2}|,\s*[A-Za-z]{2}))", user_text)
+                address_val = session_state.get("address")
+                if "mauá" in lowered or "maua" in lowered:
+                    address_val = "Mauá/SP"
+                elif addr_match and len(addr_match.group(1).strip()) > 3:
+                    address_val = addr_match.group(1).strip()
+
+                if address_val:
+                    session_state["address"] = address_val
+                    self._execute_tool(
+                        "update_customer_profile",
+                        {"phone": phone_val, "address": address_val},
+                    )
+                    tools_called.append(f"update_customer_profile(phone='{phone_val}', address='{address_val}')")
+
                 self.session_profiles[session_id] = session_state
+
+                # Check if customer has an instrument context or order in progress
+                affinity = session_state.get("affinity_tags", [])
+                if "prs" in str(affinity).lower() or "guitarra" in str(affinity).lower():
+                    is_outside_cg = address_val and "campo grande" not in address_val.lower()
+                    loc_desc = f" para {address_val}" if address_val else ""
+                    shipping_desc = (
+                        f"Para o envio{loc_desc}, despachamos com seguro total de carga via Correios (SEDEX: 2 a 4 dias úteis ou PAC: 5 a 10 dias úteis) e transportadora Jadlog (4 a 7 dias úteis). O rastreamento é gerado assim que o instrumento é despachado!"
+                        if is_outside_cg
+                        else "Como a compra é acima de R$ 500,00, o frete via motoboy para Grande Campo Grande é 100% GRÁTIS (1 a 3 dias úteis)!"
+                    )
+                    ans = (
+                        f"Perfeito, {res['name']}! Seu cadastro com o telefone {res['phone']} foi confirmado com sucesso. 🎉\n\n"
+                        f"**Resumo do seu Pedido (PRS SE Custom 24):**\n"
+                        f"• **Condições de Pagamento:** R$ 6.460,00 à vista via PIX (com 5% de desconto!) ou até 12x de R$ 566,67 sem juros no cartão de crédito.\n"
+                        f"• **Opções de Frete:** {shipping_desc}\n\n"
+                        f"Qual modalidade de pagamento você prefere para gerarmos o pedido: PIX ou Cartão de Crédito?"
+                    )
+                    return ans, tools_called, tool_payloads, 115, 65
 
                 orders_summary = ""
                 if res.get("recent_orders"):
@@ -538,7 +594,7 @@ class ConversationalOrchestrator:
 
                 ans = (
                     f"Que ótimo te receber, {res['name']}!{orders_summary} "
-                    f"Sua conta está autenticada com sucesso. Em que posso te ajudar hoje? "
+                    f"Sua conta está autenticada com sucesso pelo telefone {res['phone']}. Em que posso te ajudar hoje? "
                     f"Posso te mostrar instrumentos do nosso catálogo, consultar detalhes de pedidos ou tirar dúvidas sobre pagamentos!"
                 )
                 return ans, tools_called, tool_payloads, 115, 65
@@ -825,21 +881,28 @@ class ConversationalOrchestrator:
                 model_name = resolve_active_model(self.provider, self.llm_client, self.model)
                 temp = 0.1
 
-                response = self.llm_client.chat.completions.create(
-                    model=model_name,
-                    messages=messages,
-                    tools=TOOLS_SCHEMA,
-                    tool_choice="auto",
-                    temperature=temp,
-                    max_tokens=AppConfig.MAX_OUTPUT_TOKENS,
-                )
+                tool_rounds = 0
+                max_tool_rounds = 3
 
-                choice = response.choices[0]
-                prompt_tokens += getattr(response.usage, "prompt_tokens", 0)
-                completion_tokens += getattr(response.usage, "completion_tokens", 0)
+                while tool_rounds < max_tool_rounds:
+                    response = self.llm_client.chat.completions.create(
+                        model=model_name,
+                        messages=messages,
+                        tools=TOOLS_SCHEMA,
+                        tool_choice="auto",
+                        temperature=temp,
+                        max_tokens=AppConfig.MAX_OUTPUT_TOKENS,
+                    )
 
-                # Check if model requested tool execution
-                if choice.message.tool_calls:
+                    choice = response.choices[0]
+                    prompt_tokens += getattr(response.usage, "prompt_tokens", 0)
+                    completion_tokens += getattr(response.usage, "completion_tokens", 0)
+
+                    if not choice.message.tool_calls:
+                        raw_response_text = choice.message.content or ""
+                        break
+
+                    tool_rounds += 1
                     messages.append(choice.message)
 
                     for tc in choice.message.tool_calls:
@@ -852,6 +915,10 @@ class ConversationalOrchestrator:
                         # Guard against hallucinated searches on greeting terms
                         if t_name == "lookup_catalog" and t_args.get("query", "").strip().lower() in ("oi", "olá", "ola", "bom dia", "boa tarde", "boa noite"):
                             t_args["query"] = ""
+
+                        # If update_customer_profile is called without phone, supply session phone
+                        if t_name == "update_customer_profile" and not t_args.get("phone"):
+                            t_args["phone"] = session_state.get("phone", "")
 
                         t_start = time.perf_counter()
                         t_result = self._execute_tool(t_name, t_args)
@@ -902,19 +969,16 @@ class ConversationalOrchestrator:
                                 "content": tool_content,
                             }
                         )
-
-                    # Second call to synthesize final consultative answer
-                    second_resp = self.llm_client.chat.completions.create(
+                else:
+                    final_comp = self.llm_client.chat.completions.create(
                         model=model_name,
                         messages=messages,
                         temperature=temp,
                         max_tokens=AppConfig.MAX_OUTPUT_TOKENS,
                     )
-                    raw_response_text = second_resp.choices[0].message.content or ""
-                    prompt_tokens += getattr(second_resp.usage, "prompt_tokens", 0)
-                    completion_tokens += getattr(second_resp.usage, "completion_tokens", 0)
-                else:
-                    raw_response_text = choice.message.content or ""
+                    raw_response_text = final_comp.choices[0].message.content or ""
+                    prompt_tokens += getattr(final_comp.usage, "prompt_tokens", 0)
+                    completion_tokens += getattr(final_comp.usage, "completion_tokens", 0)
 
             except Exception as e:
                 # Log actual LLM failure for transparency and observability

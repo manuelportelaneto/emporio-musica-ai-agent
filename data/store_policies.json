@@ -42,8 +42,8 @@
     {
       "topic": "cadastro_higienizacao_dados",
       "title": "Identificação Progressiva e Higienização de Dados Pessoais",
-      "summary": "A navegação e consulta de instrumentos no catálogo é totalmente livre e anônima. Quando o cliente solicita serviços personalizados (como rastreio de pedido existente, devolução ou atualização cadastral), o consultor solicita o telefone com DDD ou CPF. O cliente é instruído a informar apenas os números inteiros, sem pontos, traços, parênteses ou espaços (ex: '67998123456' ou '12345678900'), garantindo proteção de dados, padronização e velocidade no atendimento.",
-      "keywords": ["cadastro", "identificação", "identificacao", "telefone", "cpf", "dados", "privacidade", "higienização", "higienizacao", "autenticação"]
+      "summary": "A navegação e consulta de instrumentos no catálogo é totalmente livre e anônima. Quando o cliente solicita serviços personalizados (como finalização de compra, rastreio de pedido existente, devolução ou atualização cadastral), o consultor solicita o nome e o telefone com DDD. O cliente é instruído a informar apenas os números inteiros do telefone com DDD (ex: '67998123456' ou '11987654321'), garantindo proteção de dados, padronização e velocidade no atendimento, sem necessidade de solicitar CPF.",
+      "keywords": ["cadastro", "identificação", "identificacao", "telefone", "celular", "contato", "dados", "privacidade", "higienização", "higienizacao", "autenticação"]
     }
   ]
 }

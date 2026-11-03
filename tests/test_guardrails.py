@@ -26,6 +26,19 @@ class TestInputGuardrails:
         assert "123.456.789-10" not in sanitized
         assert "[CPF PROTEGIDO]" in sanitized
 
+    def test_phone_preservation_not_masked_as_cpf(self):
+        phones = [
+            "67998123456",
+            "11987654321",
+            "Meu telefone é 67998123456",
+            "Pode me ligar no (67) 99812-3456",
+            "67 99812-3456",
+        ]
+        for p in phones:
+            sanitized, detected = mask_pii(p)
+            assert "[CPF PROTEGIDO]" not in sanitized
+            assert detected is False
+
     def test_credit_card_masking(self):
         text_with_cc = "Pagar no cartão 4111 2222 3333 4444 por favor."
         sanitized, detected = mask_pii(text_with_cc)
