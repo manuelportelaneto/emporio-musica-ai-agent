@@ -21,3 +21,4 @@ IF EXIST ".venv\Scripts\python.exe" (
 )
 
 "%PYTHON_BIN%" main.py %*
+

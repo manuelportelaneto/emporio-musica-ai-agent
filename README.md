@@ -31,7 +31,7 @@ flowchart TD
     end
 
     subgraph Core ["Orchestration Engine"]
-        LLM["Lightweight Tool-Calling Agent (Groq / OpenAI / Ollama)"]
+        LLM["Tool-Calling Agent (Groq / OpenAI / Anthropic Claude / Gemini / DeepSeek / Ollama)"]
         Memory["Sliding Window Session Memory"]
     end
 
@@ -70,6 +70,102 @@ flowchart TD
 
     Memory -.-> DBChat
     G_In & G_Exec & G_Out & CatSvc & OrdSvc & PolSvc -.-> DBAudit
+```
+
+### 1.1 Database Architecture & Relational Entity-Relationship Diagram (ERD)
+
+The system segregates data into two distinct database layers:
+1. **Operational In-Memory Relational Engine (`:memory:`):** Ingests and structures catalog, orders, customers, and promotions datasets for microsecond joins and zero disk latency.
+2. **Persistent Telemetry & Session Audit Engine (`emporio_records.db`):** Persists session lifecycle, customer CRM profiles, dialogue history, and granular observability audit spans.
+
+```mermaid
+erDiagram
+    CATEGORIES ||--o{ PRODUCTS : "categorizes"
+    CATEGORIES {
+        INTEGER category_id PK
+        TEXT name
+        TEXT description
+    }
+    PRODUCTS ||--o{ ORDER_ITEMS : "contains"
+    PRODUCTS ||--o{ PROMOTIONS : "discounts"
+    PRODUCTS {
+        INTEGER product_id PK
+        INTEGER category_id FK
+        TEXT name
+        TEXT brand
+        REAL price
+        INTEGER stock_quantity
+        TEXT status
+        TEXT specs
+    }
+    CUSTOMERS ||--o{ ORDERS : "places"
+    CUSTOMERS {
+        INTEGER customer_id PK
+        TEXT name
+        TEXT phone
+        TEXT email
+        TEXT city
+        TEXT address
+        TEXT musical_interests
+    }
+    ORDERS ||--|{ ORDER_ITEMS : "includes"
+    ORDERS {
+        INTEGER order_id PK
+        INTEGER customer_id FK
+        TEXT order_date
+        TEXT status
+        REAL total_amount
+        TEXT payment_method
+        TEXT tracking_code
+        TEXT delivery_date
+    }
+    ORDER_ITEMS {
+        INTEGER order_item_id PK
+        INTEGER order_id FK
+        INTEGER product_id FK
+        INTEGER quantity
+        REAL unit_price
+    }
+    PROMOTIONS {
+        INTEGER promotion_id PK
+        INTEGER product_id FK
+        REAL discount_percentage
+        TEXT description
+        INTEGER is_active
+    }
+    CUSTOMER_SESSIONS ||--o{ CONVERSATION_HISTORY : "contains"
+    CUSTOMER_SESSIONS ||--o{ EXECUTION_AUDIT_LOGS : "records"
+    CUSTOMER_SESSIONS {
+        TEXT session_id PK
+        INTEGER customer_id FK
+        TEXT phone
+        TEXT customer_name
+        TEXT affinity_tags
+        TEXT sentiment_score
+        TEXT interaction_category
+        TEXT alerts_detected
+        INTEGER total_duration_sec
+    }
+    CONVERSATION_HISTORY {
+        INTEGER id PK
+        TEXT session_id FK
+        TEXT role
+        TEXT content
+        TIMESTAMP created_at
+    }
+    EXECUTION_AUDIT_LOGS {
+        INTEGER id PK
+        TEXT session_id FK
+        TEXT event_type
+        TEXT component_name
+        TEXT input_payload
+        TEXT output_payload
+        REAL latency_ms
+        INTEGER prompt_tokens
+        INTEGER completion_tokens
+        TEXT status
+        TIMESTAMP created_at
+    }
 ```
 
 ---
@@ -255,14 +351,14 @@ pytest tests/ -v
 ### Test Results Summary (45 Passed)
 | Test Suite | Scope | Status |
 | :--- | :--- | :--- |
-| `TestCatalogService` (5 tests) | SQLite tables population, query matching, 5% PIX discount, non-cumulative promotions, installment tiers (12x/6x/3x) | ✅ Passed |
-| `TestOrderService` (6 tests) | Order lookup by ID, lookup by customer name, CDC 7-day remorse calculation ($\le 7\text{ days}$ eligible, $> 7\text{ days}$ expired, undelivered handling) | ✅ Passed |
-| `TestPolicyService` (2 tests) | Policy manual semantic search, store address (Rua 14 de Maio 3200), motoboy delivery rules | ✅ Passed |
-| `TestCustomerService` (3 tests) | Phone normalization, progressive authentication with recent orders, dynamic customer registration, and profile updates | ✅ Passed |
-| `TestInputGuardrails` (6 tests) | Brazilian CPF masking, Credit Card masking, accessory interception, instrument spec exception handling, prompt injection defense, non-musical out-of-scope products | ✅ Passed |
-| `TestOutputGuardrails` (5 tests) | Currency extraction, factual grounding verification against tool payload, hallucination detection, commercial tone modulation | ✅ Passed |
-| `TestAuditStore` (9 tests) | Conversation history persistence, audit telemetry logging, session metrics aggregation, customer session CRM upsert, Observability HUD formatting, session list query, full transcript retrieval, turn count tracking, and tool ranking aggregation | ✅ Passed |
-| `TestOrchestrator` (9 tests) | Complete conversational turns, tool routing, accessory bypass, order tracking, store policy retrieval, customer authentication flow, and PII redaction | ✅ Passed |
+| `TestCatalogService` (5 tests) | SQLite tables population, query matching, 5% PIX discount, non-cumulative promotions, installment tiers (12x/6x/3x) | [PASSED] |
+| `TestOrderService` (6 tests) | Order lookup by ID, lookup by customer name, CDC 7-day remorse calculation ($\le 7\text{ days}$ eligible, $> 7\text{ days}$ expired, undelivered handling) | [PASSED] |
+| `TestPolicyService` (2 tests) | Policy manual semantic search, store address (Rua 14 de Maio 3200), motoboy delivery rules | [PASSED] |
+| `TestCustomerService` (3 tests) | Phone normalization, progressive authentication with recent orders, dynamic customer registration, and profile updates | [PASSED] |
+| `TestInputGuardrails` (6 tests) | Brazilian CPF masking, Credit Card masking, accessory interception, instrument spec exception handling, prompt injection defense, non-musical out-of-scope products | [PASSED] |
+| `TestOutputGuardrails` (5 tests) | Currency extraction, factual grounding verification against tool payload, hallucination detection, commercial tone modulation | [PASSED] |
+| `TestAuditStore` (9 tests) | Conversation history persistence, audit telemetry logging, session metrics aggregation, customer session CRM upsert, Observability HUD formatting, session list query, full transcript retrieval, turn count tracking, and tool ranking aggregation | [PASSED] |
+| `TestOrchestrator` (9 tests) | Complete conversational turns, tool routing, accessory bypass, order tracking, store policy retrieval, customer authentication flow, and PII redaction | [PASSED] |
 
 ---
 
@@ -326,7 +422,7 @@ Rather than delegating unstructured prompt tasks to an AI, the workflow enforced
 ### Prerequisites
 * **Python:** Version 3.10, 3.11, or 3.12 installed.
 * **Git:** For cloning and version control.
-* **API Key (Optional):** Groq API Key (recommended for ultra-low latency) or OpenAI / Gemini / DeepSeek. *A full offline deterministic engine is included out-of-the-box with zero API keys required.*
+* **API Key (Optional):** Groq API Key (recommended for ultra-low latency) or OpenAI / Anthropic Claude / Google Gemini / DeepSeek. *A full offline deterministic engine is included out-of-the-box with zero API keys required.*
 
 ---
 
@@ -340,7 +436,7 @@ cd emporio-musica-ai-agent
 
 ### Step 2: Virtual Environment Setup & Installation
 
-#### 🐧 Linux & 🍎 macOS (Bash / Zsh)
+#### Linux & macOS (Bash / Zsh)
 ```bash
 # Create virtual environment
 python3 -m venv .venv
@@ -356,7 +452,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-#### 🪟 Windows (PowerShell or Command Prompt)
+#### Windows (PowerShell or Command Prompt)
 > [!TIP]
 > On Windows, we recommend using **PowerShell** or **Windows Terminal** with UTF-8 enabled for optimal box-drawing character display.
 
