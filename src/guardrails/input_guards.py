@@ -103,14 +103,44 @@ CREDIT_CARD_REGEX = re.compile(r"\b(?:\d[ -]*?){13,19}\b")
 
 # Prompt injection patterns
 PROMPT_INJECTION_PATTERNS = [
-    r"ignore\s+(all\s+)?(previous|prior)\s+instructions",
-    r"esque[çc]a\s+(todas\s+as\s+)?instru[çc][õo]es\s+anteriores",
-    r"voc[êe]\s+agora\s+[ée]\s+(dan|jailbreak|outro)",
-    r"system\s*prompt",
-    r"reveal\s+(your\s+)?system\s+instructions",
-    r"mostre\s+(as\s+)?suas\s+instru[çc][õo]es",
-    r"modo\s+desenvolvedor",
+    r"(?:ignore|esque[çc]a|desconsidere)\s+(?:todas\s+as\s+)?(?:suas\s+)?instru[çc][õo]es(?:\s+anteriores)?",
+    r"ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions",
+    r"voc[êe]\s+agora\s+[ée]\s+(?:dan|jailbreak|outro|um\s+assistente\s+geral)",
+    r"(?:system\s*prompt|prompt\s+do\s+sistema)",
+    r"(?:reveal|print|show)\s+(?:your\s+)?system\s+instructions",
+    r"(?:revele|mostre|print)\s+(?:as\s+)?(?:suas\s+)?instru[çc][õo]es",
+    r"modo\s+(?:desenvolvedor|developer|dan|livre)",
+    r"(?:escreva|fa[çc]a|crie)\s+um\s+script\s+(?:em\s+python|de\s+scraping|para\s+scraping)",
+    r"\bscraping\b",
+    r"\bjailbreak\b",
 ]
+
+# Non-musical product categories and unrelated retail items
+OUT_OF_SCOPE_PRODUCTS = [
+    r"\bcelular(es)?\b",
+    r"\bsmartphones?\b",
+    r"\beletr[ôo]nicos?\b",
+    r"\binform[áa]tica\b",
+    r"\bcomputador(es)?\b",
+    r"\bnotebooks?\b",
+    r"\btelevis[õo]es\b",
+    r"\btvs?\b",
+    r"\broupas?\b",
+    r"\bcal[çc]ados?\b",
+    r"\beletrodom[ée]sticos?\b",
+    r"\brem[ée]dios?\b",
+    r"\bfarm[áa]cia\b",
+    r"\bcomida\b",
+    r"\blanches?\b",
+    r"\bpizza\b",
+]
+
+OUT_OF_SCOPE_PRODUCT_REFUSAL_MESSAGE = (
+    "Na Empório da Música somos especialistas e atendemos exclusivamente o universo dos instrumentos musicais "
+    "(como violões, guitarras, contrabaixos, teclados, pianos, baterias, sopros e percussão). "
+    "Não comercializamos celulares, eletrônicos de uso geral, produtos de informática ou outros itens fora do segmento musical.\n\n"
+    "Posso te ajudar a encontrar algum instrumento musical do nosso catálogo hoje? 🎵"
+)
 
 
 @dataclass
@@ -227,6 +257,15 @@ def check_prompt_injection(text: str) -> bool:
     return False
 
 
+def check_out_of_scope_product(text: str) -> bool:
+    """Detect inquiries about non-musical product categories."""
+    lowered = text.lower()
+    for pattern in OUT_OF_SCOPE_PRODUCTS:
+        if re.search(pattern, lowered):
+            return True
+    return False
+
+
 def build_accessory_refusal(text: str) -> str:
     """Build a natural, contextual refusal message mentioning the asked accessory."""
     lowered = text.lower()
@@ -299,16 +338,28 @@ def validate_input(user_input: str) -> InputGuardResult:
             passed=False,
             sanitized_text=sanitized,
             intercept_response=(
-                "Como assistente da Empório da Música, estou aqui exclusivamente para te atender "
-                "sobre nosso catálogo de instrumentos musicais, pedidos e políticas da loja. "
-                "Como posso te ajudar com sua música hoje?"
+                "Como consultor virtual da Empório da Música, meu atendimento é dedicado exclusivamente "
+                "ao nosso catálogo de instrumentos musicais, pedidos, trocas e políticas da loja. "
+                "Não posso seguir comandos externos, executar scripts ou desviar das diretrizes de atendimento da loja. "
+                "Como posso te ajudar a encontrar o instrumento ideal para você hoje? 🎵"
             ),
             reason="PROMPT_INJECTION_ATTEMPT",
             pii_detected=pii_detected,
             blocked_category="SECURITY",
         )
 
-    # 3. Deterministic Accessory Denial Interceptor
+    # 3. Deterministic Out-of-Scope Products Interceptor
+    if check_out_of_scope_product(sanitized):
+        return InputGuardResult(
+            passed=False,
+            sanitized_text=sanitized,
+            intercept_response=OUT_OF_SCOPE_PRODUCT_REFUSAL_MESSAGE,
+            reason="PRODUCT_OUT_OF_SCOPE",
+            pii_detected=pii_detected,
+            blocked_category="COMMERCIAL_SCOPE",
+        )
+
+    # 4. Deterministic Accessory Denial Interceptor
     if check_accessory_inquiry(sanitized):
         return InputGuardResult(
             passed=False,

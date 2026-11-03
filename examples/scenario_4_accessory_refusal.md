@@ -17,7 +17,7 @@ Na Empório da Música somos especialistas exclusivos em instrumentos musicais! 
 
 ```text
 ┌─ [TELEMETRY & AUDIT HUD] ───────────────────────────────────────────────────────┐
-│ [RESPONSE TIME] 1ms  |  [TOKENS] 0 (Prompt: 0 / Completion: 0)                │
+│ [RESPONSE TIME] 0ms  |  [TOKENS] 0 (Prompt: 0 / Completion: 0)                │
 │ [TOOL INVOKED] None (Direct/Intercepted)                                      │
 │ [GUARDRAILS] Blocked (ACCESSORY_OUT_OF_SCOPE) | Zero LLM Cost                 │
 └────────────────────────────────────────────────────────────────────────────────┘

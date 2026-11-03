@@ -13,17 +13,23 @@
 
 **Consultor Empório da Música:**
 
-Encontrei excelentes opções no nosso catálogo para você:
+🎸 **Yamaha C40 Nylon Natural**  
 
-• Yamaha C40 Nylon Natural: Preço regular R$ 599.90, à vista no PIX por R$ 569.90 ou parcelado em 6x de R$ 99.98 sem juros.
+- **Preço de tabela:** R$ 599,90  
+- **Desconto PIX (5 % à vista):** R$ 569,90  
+- **Parcelamento no cartão:** até **6×** de R$ 99,98 sem juros (o modelo permite até 6 parcelas; caso queira mais parcelas, o valor mínimo por parcela deve ser respeitado – R$ 100 a partir de 7×, R$ 80 de 4 a 6×, R$ 50 até 3×).  
 
-Lembrando que o pagamento via PIX conta com 5% de desconto à vista sobre o preço de tabela! Qual desses modelos chama mais sua atenção? Posso te detalhar as madeiras, a tocabilidade ou simular outro plano de parcelamento.
+**Estoque:** Temos 12 unidades disponíveis, pronto para envio ou retirada.
+
+Se quiser avançar com a compra, preciso apenas do seu **nome** e **telefone (DDD + número, só números)** para registrar seu pedido e calcular o frete. Caso prefira experimentar o violão antes, fique à vontade para nos visitar na loja física (Rua 14 de Maio, 3200 – Centro, Campo Grande/MS).  
+
+Como posso ajudar a seguir? 😊
 
 ```text
 ┌─ [TELEMETRY & AUDIT HUD] ───────────────────────────────────────────────────────┐
-│ [RESPONSE TIME] 16ms  |  [TOKENS] 225 (Prompt: 140 / Completion: 85)          │
-│ [TOOL INVOKED] lookup_catalog(query='yamaha c40')                             │
-│ [GUARDRAILS] Scope Passed | Factual Grounding: 100% Verified                  │
+│ [RESPONSE TIME] 6774ms  |  [TOKENS] 8640 (Prompt: 8268 / Completion: 372)     │
+│ [TOOL INVOKED] lookup_catalog({'in_stock_only': True, 'query': 'Yamaha C40'}) │
+│ [GUARDRAILS] Scope Passed | Factual Grounding: 67% Verified                   │
 └────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -36,12 +42,28 @@ Lembrando que o pagamento via PIX conta com 5% de desconto à vista sobre o pre�
 
 **Consultor Empório da Música:**
 
-Na Empório da Música facilitamos sua compra! Para pagamento à vista no PIX, você ganha 5% de desconto sobre o valor de tabela (desconto não-cumulativo com itens em promoção). No cartão de crédito, parcelamos em até 12x sem juros (parcelas mínimas: R$ 100 para 7-12x, R$ 80 para 4-6x e R$ 50 para até 3x). Qual instrumento você gostaria de adquirir hoje?
+Sim! O Yamaha C40 tem **5 % de desconto** no pagamento à vista via **PIX**, passando de R$ 599,90 para **R$ 569,90**.
+
+No **cartão de crédito** você pode parcelar em até **12× sem juros**, respeitando as parcelas mínimas da loja:
+
+- **1 a 3×** – parcela mínima de **R$ 50**  
+- **4 a 6×** – parcela mínima de **R$ 80** (ex.: 6× R$ 94,98)  
+- **7 a 12×** – parcela mínima de **R$ 100** (ex.: 10× R$ 56,99)
+
+Como o valor com desconto é R$ 569,90, as opções mais comuns são:
+
+- **6× R$ 94,98** (sem juros)  
+- **8× R$ 71,24** (sem juros)  
+- **12× R$ 47,49** (não atende à parcela mínima de R$ 100, então o máximo aqui seria 6× ou 7×, dependendo da sua preferência).
+
+Se quiser avançar com a compra, preciso apenas do **seu nome** e do **telefone (DDD + número, só números)** para registrar o pedido e calcular o frete. Caso prefira experimentar o violão antes, pode nos visitar na loja física (Rua 14 de Maio, 3200 – Centro, Campo Grande/MS).  
+
+Como deseja prosseguir? 🎶
 
 ```text
 ┌─ [TELEMETRY & AUDIT HUD] ───────────────────────────────────────────────────────┐
-│ [RESPONSE TIME] 8ms  |  [TOKENS] 170 (Prompt: 110 / Completion: 60)           │
-│ [TOOL INVOKED] query_store_policy(topic='pagamento pix cartão')               │
+│ [RESPONSE TIME] 34527ms  |  [TOKENS] 4721 (Prompt: 4233 / Completion: 488)    │
+│ [TOOL INVOKED] Direct Response                                                │
 │ [GUARDRAILS] Scope Passed | Factual Grounding: 100% Verified                  │
 └────────────────────────────────────────────────────────────────────────────────┘
 ```

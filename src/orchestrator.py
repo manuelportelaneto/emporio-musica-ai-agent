@@ -615,7 +615,8 @@ class ConversationalOrchestrator:
         # 4. Check order tracking, cancellation or CDC return intent (#1, #2, devolver, cancelar, etc.)
         order_keywords = [
             "pedido", "pedidos", "rastreio", "rastrear", "devolver", "devolução",
-            "devolucao", "cancelar", "cancelamento", "troca", "trocar", "arrependimento"
+            "devolucao", "cancelar", "cancelamento", "troca", "trocar", "arrependimento",
+            "código de rastreio", "codigo de rastreio", "quando foi entregue", "foi entregue"
         ]
         has_order_keyword = any(w in lowered for w in order_keywords)
         has_hash_number = bool(re.search(r"#\s*\d+", lowered))
@@ -631,6 +632,9 @@ class ConversationalOrchestrator:
                 except ValueError:
                     pass
 
+            if not order_id and session_state.get("active_order_id"):
+                order_id = session_state.get("active_order_id")
+
             name_or_phone = session_state.get("phone") or session_state.get("customer_name")
             for sample in ["lucas", "ana", "pedro", "mariana", "thiago", "rodrigo", "fernanda"]:
                 if sample in lowered:
@@ -645,10 +649,20 @@ class ConversationalOrchestrator:
 
                 if res:
                     session_state.pop("pending_intent", None)
+                    session_state["active_order_id"] = res["order_id"]
                     self.session_profiles[session_id] = session_state
                     ret = res["return_policy"]
                     items_desc = ", ".join([f"{it['name']} (Qtd: {it['quantity']})" for it in res["items"]])
                     
+                    # Specific question about tracking code or delivery date
+                    if any(w in lowered for w in ["código de rastreio", "codigo de rastreio", "quando foi entregue", "data de entrega"]):
+                        delivery_str = f"no dia {res['delivery_date']}" if res.get("delivery_date") else "ainda em trânsito"
+                        ans = (
+                            f"Com certeza! O seu pedido #{res['order_id']} possui o código de rastreamento **{res['tracking_code']}** "
+                            f"e a entrega foi confirmada {delivery_str} pela transportadora. Se precisar de mais alguma informação, estou à disposição!"
+                        )
+                        return ans, tools_called, tool_payloads, 95, 45
+
                     delivery_info = f" (entregue em {res['delivery_date']})" if res.get("delivery_date") else ""
                     ans = (
                         f"Localizei o pedido #{res['order_id']} no sistema! 📦\n\n"
@@ -778,45 +792,89 @@ class ConversationalOrchestrator:
             return ans, tools_called, tool_payloads, 100, 55
 
         # 6. Check general store policy (shipping, warranty, returns)
-        if any(w in lowered for w in ["frete", "garantia", "telefone", "devolução", "devolver"]):
-            res = self._execute_tool("query_store_policy", {"topic": user_text})
-            tools_called.append(f"query_store_policy(topic='{user_text[:20]}')")
+        is_return_inquiry = any(w in lowered for w in ["devolução", "devolucao", "devolver", "arrependimento", "cdc", "7 dias", "troca", "trocar"])
+        is_shipping_inquiry = any(w in lowered for w in ["frete", "entrega", "envio", "prazo", "motoboy", "jadlog", "sedex", "pac"])
+        is_warranty_inquiry = any(w in lowered for w in ["garantia", "defeito", "quebrado", "defeito de fabricação"])
+
+        if is_return_inquiry:
+            res = self._execute_tool("query_store_policy", {"topic": "política de troca devolução arrependimento cdc 7 dias"})
+            tools_called.append("query_store_policy(topic='devolução arrependimento cdc')")
+            tool_payloads.append(res)
+            if any(w in lowered for w in ["mais de 7 dias", "passou", "passado", "depois de 7", "expirou"]):
+                ans = (
+                    "Após o prazo legal de 7 dias corridos do recebimento (previsto no Artigo 49 do Código de Defesa do Consumidor "
+                    "para compras online), não é mais possível realizar a devolução por arrependimento ou desistência da compra.\n\n"
+                    "A partir desse período, passa a vigorar a garantia da Empório da Música de 30 dias corridos exclusivamente contra "
+                    "defeitos de fabricação ou vícios do produto. Se o seu instrumento apresentar qualquer falha técnica, "
+                    "nossa assistência técnica autorizada realiza o conserto ou a troca sem custos!"
+                )
+            else:
+                ans = (
+                    "Nossa política de trocas e devoluções segue rigorosamente o Código de Defesa do Consumidor (CDC Artigo 49): "
+                    "para compras feitas em nosso canal online, você tem até 7 dias corridos a partir da data de entrega do produto "
+                    "para manifestar o arrependimento e devolver o instrumento com reembolso integral do valor pago. "
+                    "O instrumento deve estar sem avarias e em sua embalagem original. "
+                    "Além disso, todos os nossos instrumentos contam com 30 dias de garantia contra eventuais defeitos de fabricação!"
+                )
+            return ans, tools_called, tool_payloads, 110, 60
+
+        if is_shipping_inquiry:
+            res = self._execute_tool("query_store_policy", {"topic": "frete entrega prazos campo grande motoboy jadlog correios"})
+            tools_called.append("query_store_policy(topic='frete prazos entrega')")
             tool_payloads.append(res)
             ans = (
-                "Para a Grande Campo Grande, temos entrega via motoboy com frete grátis em compras acima de R$ 500 "
-                "(ou taxa fixa de R$ 35 abaixo desse valor). Envios para outros estados são feitos via Correios (SEDEX/PAC) e Jadlog. "
-                "Nossa política de trocas segue o Código de Defesa do Consumidor com 7 dias corridos de arrependimento "
-                "e 30 dias de garantia contra defeitos de fabricação."
+                "Para a Grande Campo Grande/MS, oferecemos entrega expressa via motoboy com frete 100% GRÁTIS em compras acima de R$ 500 "
+                "(ou taxa fixa de R$ 35 para valores inferiores), com prazo de 1 a 3 dias úteis.\n\n"
+                "Para outras cidades e estados, enviamos via Correios (SEDEX: 2 a 4 dias úteis / PAC: 5 a 10 dias úteis) e pela "
+                "transportadora Jadlog (4 a 7 dias úteis), sempre com embalagem reforçada e seguro total de carga!"
             )
-            return ans, tools_called, tool_payloads, 95, 55
+            return ans, tools_called, tool_payloads, 105, 55
 
-        # 7. Default fallback
-        res = self._execute_tool("lookup_catalog", {"query": user_text, "in_stock_only": True})
-        tools_called.append(f"lookup_catalog(query='{user_text[:20]}')")
-        tool_payloads.append(res)
+        if is_warranty_inquiry:
+            res = self._execute_tool("query_store_policy", {"topic": "garantia defeitos assistência técnica 30 dias"})
+            tools_called.append("query_store_policy(topic='garantia defeitos 30 dias')")
+            tool_payloads.append(res)
+            ans = (
+                "Todos os instrumentos comercializados na Empório da Música possuem garantia legal e contratual de 30 dias corridos "
+                "contra defeitos de fabricação, alinhada ao Código de Defesa do Consumidor. "
+                "Em caso de constatação de vício ou defeito de fábrica, nossa equipe providencia o reparo imediato ou a substituição do produto!"
+            )
+            return ans, tools_called, tool_payloads, 95, 50
 
-        if res:
-            items_lines = []
-            for item in res:
-                promo_info = f" (com desconto especial de {item['discount_percentage']}%)" if item["has_promotion"] else ""
-                items_lines.append(
-                    f"• {item['name']}{promo_info}: Preço regular R$ {item['regular_price']:.2f}, "
-                    f"à vista no PIX por R$ {item['pix_price']:.2f} ou parcelado em {item['installments']}."
+        # 7. Default fallback for ambiguous or unmapped queries
+        music_keywords = [
+            "violão", "violao", "guitarra", "baixo", "teclado", "piano", "bateria", "ukulele",
+            "som", "tocar", "música", "musica", "instrumento", "marca", "modelo", "cordas", "teclas"
+        ]
+        has_musical_context = any(w in lowered for w in music_keywords)
+
+        if has_musical_context:
+            res = self._execute_tool("lookup_catalog", {"query": user_text, "in_stock_only": True})
+            tools_called.append(f"lookup_catalog(query='{user_text[:20]}')")
+            tool_payloads.append(res)
+
+            if res:
+                items_lines = []
+                for item in res:
+                    promo_info = f" (com desconto especial de {item['discount_percentage']}%)" if item["has_promotion"] else ""
+                    items_lines.append(
+                        f"• {item['name']}{promo_info}: Preço regular R$ {item['regular_price']:.2f}, "
+                        f"à vista no PIX por R$ {item['pix_price']:.2f} ou parcelado em {item['installments']}."
+                    )
+                catalog_summary = "\n".join(items_lines)
+                ans = (
+                    f"Encontrei excelentes opções no nosso catálogo para você:\n\n{catalog_summary}\n\n"
+                    f"Gostaria de mais detalhes sobre algum desses modelos ou prefere ver opções em outra categoria?"
                 )
-            catalog_summary = "\n".join(items_lines)
-            ans = (
-                f"Encontrei excelentes opções no nosso catálogo para você:\n\n{catalog_summary}\n\n"
-                f"Gostaria de mais detalhes sobre algum desses modelos ou prefere ver opções em outra categoria?"
-            )
-            return ans, tools_called, tool_payloads, 140, 85
-        else:
-            ans = (
-                "Entendi! Como consultor da Empório da Música, estou aqui para te ajudar no que for preciso. "
-                "Você gostaria de ver opções em instrumentos de cordas (violões e guitarras), teclas (pianos e teclados), "
-                "baterias ou sopros? Ou se preferir, posso te orientar sobre formas de pagamento (5% de desconto no PIX e até 12x sem juros), "
-                "rastreamento de pedidos ou cálculo de frete!"
-            )
-            return ans, tools_called, tool_payloads, 80, 45
+                return ans, tools_called, tool_payloads, 140, 85
+
+        ans = (
+            "Como consultor da Empório da Música, estou aqui para te auxiliar exclusivamente com instrumentos musicais "
+            "(violões, guitarras, baixos, teclados, pianos, baterias e sopros), status de pedidos, formas de pagamento e políticas da loja. "
+            "Não localizei instrumentos ou serviços relacionados a essa solicitação em nosso catálogo. "
+            "Como posso te ajudar a escolher o instrumento ideal hoje? 🎵"
+        )
+        return ans, tools_called, tool_payloads, 80, 45
 
     def process_turn(self, session_id: str, user_message: str) -> OrchestratorResponse:
         """Execute a full conversational turn with guardrails, tools, and telemetry."""

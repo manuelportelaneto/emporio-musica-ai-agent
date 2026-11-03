@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Architecture: Spec-Driven](https://img.shields.io/badge/architecture-spec--driven-emerald.svg)](SPEC.md)
-[![Tests: 44 Passed](https://img.shields.io/badge/tests-44%20passed-brightgreen.svg)](tests/)
+[![Tests: 45 Passed](https://img.shields.io/badge/tests-45%20passed-brightgreen.svg)](tests/)
 
 Autonomous, production-grade conversational AI assistant and telemetry engine engineered for **Empório da Música**, a traditional brick-and-mortar and digital musical instruments retailer in Campo Grande/MS (founded in 2008). 
 
@@ -132,7 +132,7 @@ emporio-musica-ai-agent/
 │   └── cli.py                    # 3-Stage English Evaluator CLI with HUD
 ├── app.py                        # Streamlit Evaluator Console & Web Dashboard
 ├── examples/                     # Real execution scenarios & transcripts
-├── tests/                        # Comprehensive test suite (44 pytest unit tests)
+├── tests/                        # Comprehensive test suite (45 pytest unit tests)
 │   ├── test_services.py          # Unit tests for catalog, orders, and policies
 │   ├── test_guardrails.py        # Unit tests for input/output defense layers
 │   ├── test_audit_store.py       # Unit tests for persistence and telemetry HUD
@@ -252,14 +252,14 @@ source .venv/bin/activate
 pytest tests/ -v
 ```
 
-### Test Results Summary (44 Passed)
+### Test Results Summary (45 Passed)
 | Test Suite | Scope | Status |
 | :--- | :--- | :--- |
 | `TestCatalogService` (5 tests) | SQLite tables population, query matching, 5% PIX discount, non-cumulative promotions, installment tiers (12x/6x/3x) | ✅ Passed |
 | `TestOrderService` (6 tests) | Order lookup by ID, lookup by customer name, CDC 7-day remorse calculation ($\le 7\text{ days}$ eligible, $> 7\text{ days}$ expired, undelivered handling) | ✅ Passed |
 | `TestPolicyService` (2 tests) | Policy manual semantic search, store address (Rua 14 de Maio 3200), motoboy delivery rules | ✅ Passed |
 | `TestCustomerService` (3 tests) | Phone normalization, progressive authentication with recent orders, dynamic customer registration, and profile updates | ✅ Passed |
-| `TestInputGuardrails` (5 tests) | Brazilian CPF masking, Credit Card masking, accessory interception, instrument spec exception handling, prompt injection defense | ✅ Passed |
+| `TestInputGuardrails` (6 tests) | Brazilian CPF masking, Credit Card masking, accessory interception, instrument spec exception handling, prompt injection defense, non-musical out-of-scope products | ✅ Passed |
 | `TestOutputGuardrails` (5 tests) | Currency extraction, factual grounding verification against tool payload, hallucination detection, commercial tone modulation | ✅ Passed |
 | `TestAuditStore` (9 tests) | Conversation history persistence, audit telemetry logging, session metrics aggregation, customer session CRM upsert, Observability HUD formatting, session list query, full transcript retrieval, turn count tracking, and tool ranking aggregation | ✅ Passed |
 | `TestOrchestrator` (9 tests) | Complete conversational turns, tool routing, accessory bypass, order tracking, store policy retrieval, customer authentication flow, and PII redaction | ✅ Passed |
