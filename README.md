@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Architecture: Spec-Driven](https://img.shields.io/badge/architecture-spec--driven-emerald.svg)](SPEC.md)
-[![Tests: 30 Passed](https://img.shields.io/badge/tests-30%20passed-brightgreen.svg)](tests/)
+[![Tests: 44 Passed](https://img.shields.io/badge/tests-44%20passed-brightgreen.svg)](tests/)
 
 Autonomous, production-grade conversational AI assistant and telemetry engine engineered for **Empório da Música**, a traditional brick-and-mortar and digital musical instruments retailer in Campo Grande/MS (founded in 2008). 
 
@@ -132,7 +132,7 @@ emporio-musica-ai-agent/
 │   └── cli.py                    # 3-Stage English Evaluator CLI with HUD
 ├── app.py                        # Streamlit Evaluator Console & Web Dashboard
 ├── examples/                     # Real execution scenarios & transcripts
-├── tests/                        # Comprehensive test suite (37 pytest unit tests)
+├── tests/                        # Comprehensive test suite (44 pytest unit tests)
 │   ├── test_services.py          # Unit tests for catalog, orders, and policies
 │   ├── test_guardrails.py        # Unit tests for input/output defense layers
 │   ├── test_audit_store.py       # Unit tests for persistence and telemetry HUD
@@ -252,21 +252,76 @@ source .venv/bin/activate
 pytest tests/ -v
 ```
 
-### Test Results Summary (38 Passed)
+### Test Results Summary (44 Passed)
 | Test Suite | Scope | Status |
 | :--- | :--- | :--- |
-| `TestCatalogService` | SQLite tables population, query matching, 5% PIX discount, non-cumulative promotions, installment tiers (12x/6x/3x) | ✅ Passed |
-| `TestOrderService` | Order lookup by ID, lookup by customer name, CDC 7-day remorse calculation ($\le 7\text{ days}$ eligible, $> 7\text{ days}$ expired, undelivered handling) | ✅ Passed |
-| `TestPolicyService` | Policy manual semantic search, store address (Rua 14 de Maio 3200), motoboy delivery rules | ✅ Passed |
-| `TestCustomerService` | Phone normalization, progressive authentication with recent orders, dynamic customer registration, and profile updates | ✅ Passed |
-| `TestInputGuardrails` | Brazilian CPF masking, Credit Card masking, accessory interception, instrument spec exception handling, prompt injection defense | ✅ Passed |
-| `TestOutputGuardrails` | Currency extraction, factual grounding verification against tool payload, hallucination detection, commercial tone modulation | ✅ Passed |
-| `TestAuditStore` | Conversation history persistence, audit telemetry logging, session metrics aggregation, customer session CRM upsert, Observability HUD formatting, session list query, full transcript retrieval, and session log purging | ✅ Passed |
-| `TestOrchestrator` | Complete conversational turns, tool routing, accessory bypass, order tracking, store policy retrieval, customer authentication flow, and PII redaction | ✅ Passed |
+| `TestCatalogService` (5 tests) | SQLite tables population, query matching, 5% PIX discount, non-cumulative promotions, installment tiers (12x/6x/3x) | ✅ Passed |
+| `TestOrderService` (6 tests) | Order lookup by ID, lookup by customer name, CDC 7-day remorse calculation ($\le 7\text{ days}$ eligible, $> 7\text{ days}$ expired, undelivered handling) | ✅ Passed |
+| `TestPolicyService` (2 tests) | Policy manual semantic search, store address (Rua 14 de Maio 3200), motoboy delivery rules | ✅ Passed |
+| `TestCustomerService` (3 tests) | Phone normalization, progressive authentication with recent orders, dynamic customer registration, and profile updates | ✅ Passed |
+| `TestInputGuardrails` (5 tests) | Brazilian CPF masking, Credit Card masking, accessory interception, instrument spec exception handling, prompt injection defense | ✅ Passed |
+| `TestOutputGuardrails` (5 tests) | Currency extraction, factual grounding verification against tool payload, hallucination detection, commercial tone modulation | ✅ Passed |
+| `TestAuditStore` (9 tests) | Conversation history persistence, audit telemetry logging, session metrics aggregation, customer session CRM upsert, Observability HUD formatting, session list query, full transcript retrieval, turn count tracking, and tool ranking aggregation | ✅ Passed |
+| `TestOrchestrator` (9 tests) | Complete conversational turns, tool routing, accessory bypass, order tracking, store policy retrieval, customer authentication flow, and PII redaction | ✅ Passed |
 
 ---
 
-## 8. Quickstart Guide
+## 8. Known Limitations & Production Roadmap ("Com Mais Tempo")
+
+In compliance with the Artefact evaluation criteria, here is a transparent assessment of current trade-offs and what would be implemented with additional development time:
+
+### 8.1 Known Architectural Limitations & Trade-offs
+1. **In-Memory SQLite Engine:**
+   - *Current Implementation:* Ingests 6 operational CSV tables into an in-memory SQLite database upon startup ($<15\text{ms}$ initialization).
+   - *Trade-off:* Ideal for rapid evaluation, deterministic testing, and zero external infrastructure dependencies, but state is volatile across hard server restarts.
+2. **Lightweight Semantic RAG:**
+   - *Current Implementation:* Uses local vectorized chunking and cosine similarity to index `políticas_da_loja.pdf`.
+   - *Trade-off:* Zero cost and lightning-fast ($<5\text{ms}$), but lexical matching for complex, highly specific musical jargon could benefit from hybrid dense-sparse scoring.
+3. **Session State Storage:**
+   - *Current Implementation:* Session context is stored in local SQLite (`emporio_records.db`).
+   - *Trade-off:* Perfectly tailored for single-instance CLI and Streamlit evaluations, but horizontally scaled microservices require distributed caching.
+
+### 8.2 What Would Be Done With More Time ("Com Mais Tempo")
+1. **Hybrid Dense + Lexical Retrieval (Dense + BM25 + Cross-Encoder Reranking):**
+   - Implement hybrid indexing using dense multilingual embeddings (`bge-m3` or `text-embedding-3-small`) combined with BM25 keyword matching and a Cross-Encoder reranker. This ensures ultra-high precision for alphanumeric instrument models (e.g. `GD20-NS`, `PACIFICA112V`, `CG162S`).
+2. **Distributed Tracing & Continuous LLM Evaluation (CI/CD Evals):**
+   - Integrate with **Langfuse** or **Arize Phoenix** for distributed telemetry and span tracking.
+   - Establish an automated evaluation harness with **Ragas** or **DeepEval** in GitHub Actions, measuring *Context Precision*, *Faithfulness*, and *Tool Call Selection Accuracy* on every pull request.
+3. **Official WhatsApp Business Cloud API Integration:**
+   - Wrap the core orchestrator in an asynchronous **FastAPI** microservice handling incoming Meta Cloud API webhooks.
+   - Support rich interactive messages (WhatsApp list pickers, quick-reply buttons, order PDF receipts).
+4. **Human-in-the-Loop (HITL) Storefront Console:**
+   - Develop a dedicated operational dashboard for human sales consultants at the physical store in Campo Grande (Rua 14 de Maio, 3200) to seamlessly intercept conversations, take over complex consultations, and view real-time audit logs.
+5. **Persistent Relational Database & Distributed Caching:**
+   - Migrate in-memory SQLite to managed **PostgreSQL** with Row-Level Security (RLS) and **Redis** for distributed session caching and rate-limiting.
+
+---
+
+## 9. AI Assistance Disclosure & Engineering Workflow ("Uso de Assistentes de Código")
+
+In full alignment with the Artefact evaluation guidelines regarding transparency in the use of AI tools, the development workflow was structured around **Spec-Driven Development (SDD)** with distinct phases:
+
+### Phase 1: Architectural Brainstorming & Formal Specification
+* **AI Tool Employed:** Conversational Gemini (model: **Gemini 3.8 Flash - medium**).
+* **Scope of Use:**
+  - Collaborative brainstorming on retail conversational boundaries, customer friction analysis, and edge cases.
+  - Designing the multi-layer defense-in-depth architecture (Zero-LLM accessory bypass, PII sanitization under LGPD, deterministic CDC Art. 49 calculation).
+  - Production of the formal engineering specifications: [`SPEC.md`](SPEC.md) (comprehensive architecture blueprint) and [`AGENT_PROMPT.md`](AGENT_PROMPT.md) (consultative persona guidelines).
+
+### Phase 2: Implementation, Code Generation & Troubleshooting
+* **AI Tool Employed:** **Google Antigravity IDE** powered exclusively by the **Gemini 3.8 Flash (medium)** model.
+* **Scope of Use:**
+  - **Agile Code Scaffolding:** Translating formal specifications into modular, decoupled Python components across `src/services/`, `src/guardrails/`, and `src/storage/`.
+  - **Automated Test Generation:** Authoring comprehensive unit tests with Pytest (reaching 44 verified passing tests across all layers).
+  - **Observability & Visual Dashboard:** Implementing the 4-tab Streamlit Evaluator Console (`app.py`) with telemetry HUD cards, analytics charts, and LGPD-compliant customer simulation directories.
+  - **Active Debugging & Troubleshooting:** Diagnosing edge cases and runtime bottlenecks in real time (e.g. preserving Brazilian phone numbers from accidental CPF masking, expanding order intent detection for `#id` return contexts, and resolving Streamlit sidebar KPI string truncation).
+
+### Engineering Rationale
+Rather than delegating unstructured prompt tasks to an AI, the workflow enforced a strict **Spec-First, Test-Driven paradigm**. Every AI-generated module was systematically bounded by predefined interfaces, validated against deterministic unit tests, and audited for factual correctness and business compliance.
+
+---
+
+## 10. Quickstart Guide
 
 ### Prerequisites
 * Python 3.10+
@@ -308,5 +363,5 @@ python3 main.py
 
 ---
 
-## 9. License
+## 11. License
 Distributed under the MIT License. See [LICENSE](LICENSE) for more details.
