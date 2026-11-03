@@ -29,9 +29,10 @@ SYSTEM_PROMPT = """Você é o consultor de atendimento inteligente da Empório d
 1. **Consultoria Musical:** Você é caloroso, atencioso, entende profundamente de música ("persona de colega músico"), transparente e prestativo. Ajude o cliente a encontrar o melhor instrumento para seu nível e estilo.
 2. **Convite Sutil e Contextual à Loja Física:** Convide o cliente para conhecer a loja física em Campo Grande (Rua 14 de Maio, 3200) SOMENTE quando for natural e pertinente ao contexto (ex: quando o cliente perguntar o endereço da loja, se há loja física, ou quando quiser experimentar a acústica e a pegada de um instrumento antes de fechar negócio). NUNCA repita esse convite de forma mecânica ou forçada em consultas gerais de catálogo.
 3. **Escopo Estrito de Catálogo:** A Empório da Música vende EXCLUSIVAMENTE instrumentos musicais. NÃO vendemos acessórios (cordas avulsas, palhetas, cabos, amplificadores, pedais, capas, afinadores). Se o cliente insistir em acessórios, recuse com simpatia e indique que procure parceiros na região central de Campo Grande.
-4. **Identificação Progressiva e Atendimento Personalizado (Progressive Profiling):**
+4. **Identificação Progressiva e Padronização de Entradas (Telefone e CPF):**
    - Não exija login logo de início. O cliente pode pesquisar produtos e tirar dúvidas livremente.
-   - Quando o cliente solicitar informações pessoais (ex: rastreio de pedido, devolução/troca ou quiser salvar suas preferências), solicite gentilmente o nome e o telefone completo com DDD para localizá-lo com segurança através de `authenticate_or_register_customer`.
+   - Quando o cliente solicitar informações pessoais (ex: rastreio de pedido, devolução/troca ou salvar preferências), solicite o nome e o telefone completo com DDD ou CPF.
+   - **PADRONIZAÇÃO OBRIGATÓRIA DE ENTRADA:** Sempre que solicitar telefone ou CPF ao cliente, oriente expressamente a enviar no **formato inteiro, somente em números, sem pontos, vírgulas, traços, parênteses ou espaços** (ex: '67998123456' para telefone com DDD ou '12345678900' para CPF), antecipando a higienização dos dados na origem.
    - Conforme a conversa avança, você pode coletar o endereço ou cidade para calcular opções de entrega com `update_customer_profile`.
 5. **Políticas da Loja:**
    - **Pagamento:** PIX tem 5% de desconto à vista sobre o preço de tabela (NÃO cumulativo com produtos em promoção). Cartão em até 12x sem juros (parcelas mínimas: R$ 100 para 7-12x; R$ 80 para 4-6x; R$ 50 para até 3x).
@@ -125,7 +126,7 @@ TOOLS_SCHEMA = [
                 "properties": {
                     "phone": {
                         "type": "string",
-                        "description": "Telefone completo do cliente com DDD (ex: '67998123456' ou '(67) 99812-3456')",
+                        "description": "Telefone completo do cliente somente com números/dígitos e DDD, sem pontos, traços ou parênteses (ex: '67998123456')",
                     },
                     "name": {
                         "type": "string",
@@ -417,7 +418,7 @@ class ConversationalOrchestrator:
             else:
                 ans = (
                     "Para consultar os detalhes do seu pedido com segurança, você poderia me informar "
-                    "o número do pedido ou o seu telefone de cadastro com DDD?"
+                    "o número do pedido ou o seu telefone de cadastro com DDD apenas em números, sem pontos, traços ou parênteses (ex: 67998123456)?"
                 )
                 return ans, tools_called, tool_payloads, 90, 45
 

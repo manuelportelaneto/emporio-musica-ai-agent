@@ -40,7 +40,7 @@ def authenticate_or_register_customer(
     clean_digits = normalize_phone(phone)
     if not clean_digits or len(clean_digits) < 8:
         return {
-            "error": "Número de telefone inválido. Por favor, informe o telefone completo com DDD."
+            "error": "Número de telefone inválido. Por favor, informe o telefone completo com DDD apenas em números, sem pontos, traços ou parênteses (ex: 67998123456)."
         }
 
     cursor = conn.cursor()
@@ -146,7 +146,7 @@ def update_customer_profile(
     """
     clean_digits = normalize_phone(phone)
     if not clean_digits:
-        return {"error": "Telefone inválido para atualização de perfil."}
+        return {"error": "Telefone inválido para atualização. Envie apenas os números com DDD, sem pontos, traços ou parênteses (ex: 67998123456)."}
 
     cursor = conn.cursor()
     cursor.execute("SELECT customer_id, phone, address, musical_interests FROM customers")
