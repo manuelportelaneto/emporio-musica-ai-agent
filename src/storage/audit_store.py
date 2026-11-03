@@ -256,6 +256,21 @@ class AuditStore:
             rows = cursor.fetchall()
             return [dict(r) for r in rows]
 
+    def get_session_audit_logs(
+        self, session_id: str, limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """Convenience alias for get_audit_logs filtering by session_id."""
+        return self.get_audit_logs(session_id=session_id, limit=limit)
+
+    def clear_session(self, session_id: str) -> None:
+        """Purge conversation history and telemetry logs for a specific session."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM conversation_history WHERE session_id = ?", (session_id,))
+            cursor.execute("DELETE FROM execution_audit_logs WHERE session_id = ?", (session_id,))
+            cursor.execute("DELETE FROM customer_sessions WHERE session_id = ?", (session_id,))
+            conn.commit()
+
     def get_session_metrics(self, session_id: str) -> Dict[str, Any]:
         """Aggregate telemetry performance metrics for a specific session."""
         with self._get_connection() as conn:

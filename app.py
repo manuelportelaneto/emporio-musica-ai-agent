@@ -255,22 +255,27 @@ with tab_crm:
     st.markdown("### 👤 Customer Intelligence Profile")
     st.caption("Dynamic customer attributes synchronized during conversational turns.")
 
-    crm_data = st.session_state.audit_store.get_customer_session(st.session_state.session_id)
+    crm_data = st.session_state.audit_store.get_customer_session(st.session_state.session_id) or {}
 
     col_crm1, col_crm2 = st.columns(2)
     with col_crm1:
         st.markdown("**Identification & Contact**")
         st.text_input("Customer Name", value=crm_data.get("customer_name") or "Unidentified Visitor", disabled=True)
         st.text_input("Clean Phone (Digits Only)", value=crm_data.get("phone") or "Not Provided", disabled=True)
-        st.text_input("Registration Status", value=crm_data.get("registration_status", "GUEST").upper(), disabled=True)
+        st.text_input("Registration Status", value=str(crm_data.get("registration_status", "GUEST")).upper(), disabled=True)
 
     with col_crm2:
         st.markdown("**Customer Context & Loyalty**")
-        loyalty = "Gold Tier (Frequent Buyer)" if crm_data.get("orders_count", 0) > 0 else "New Prospect"
+        orders_count = crm_data.get("orders_count", 0) or 0
+        loyalty = "Gold Tier (Frequent Buyer)" if orders_count > 0 else "New Prospect"
         st.text_input("Loyalty Tier", value=loyalty, disabled=True)
-        st.text_input("Orders On Record", value=str(crm_data.get("orders_count", 0)), disabled=True)
+        st.text_input("Orders On Record", value=str(orders_count), disabled=True)
         
-        affinity = crm_data.get("affinity_tags") or "Acoustic, Beginner Guitar"
+        raw_affinity = crm_data.get("affinity_tags")
+        if isinstance(raw_affinity, list):
+            affinity = ", ".join(raw_affinity) if raw_affinity else "Acoustic, Beginner Guitar"
+        else:
+            affinity = str(raw_affinity) if raw_affinity else "Acoustic, Beginner Guitar"
         st.text_input("Affinity Tags", value=affinity, disabled=True)
 
     st.markdown("---")

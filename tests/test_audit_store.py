@@ -140,3 +140,21 @@ class TestAuditStore:
         assert transcript[0]["content"] == "Olá!"
         assert transcript[1]["role"] == "assistant"
 
+    def test_clear_session_and_get_session_audit_logs(self, temp_audit_store):
+        session = "session-to-clear"
+        temp_audit_store.save_message(session, "user", "Test clear")
+        temp_audit_store.log_audit_event(
+            session_id=session,
+            event_type="TOOL_INVOCATION",
+            component_name="catalog_service",
+            latency_ms=10.0,
+        )
+        
+        logs = temp_audit_store.get_session_audit_logs(session)
+        assert len(logs) == 1
+        assert logs[0]["event_type"] == "TOOL_INVOCATION"
+        
+        temp_audit_store.clear_session(session)
+        assert len(temp_audit_store.get_conversation_history(session)) == 0
+        assert len(temp_audit_store.get_session_audit_logs(session)) == 0
+

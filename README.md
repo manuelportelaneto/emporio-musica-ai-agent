@@ -180,7 +180,7 @@ Adhering to strict technical evaluation guidelines, progress is deployed via fre
   - Executed and recorded the 5 mandatory business scenarios into `examples/`.
 - [x] **Step 7: Full Final Documentation & Observability Report** (`docs`)
   - Complete architectural documentation in `SPEC.md` and `README.md`.
-  - Comprehensive unit test suite (**37/37 passing**).
+  - Comprehensive unit test suite (**38/38 passing**).
   - Production improvements roadmap and AI engineering transparency report.
 
 ---
@@ -252,7 +252,7 @@ source .venv/bin/activate
 pytest tests/ -v
 ```
 
-### Test Results Summary (37 Passed)
+### Test Results Summary (38 Passed)
 | Test Suite | Scope | Status |
 | :--- | :--- | :--- |
 | `TestCatalogService` | SQLite tables population, query matching, 5% PIX discount, non-cumulative promotions, installment tiers (12x/6x/3x) | ✅ Passed |
@@ -261,7 +261,7 @@ pytest tests/ -v
 | `TestCustomerService` | Phone normalization, progressive authentication with recent orders, dynamic customer registration, and profile updates | ✅ Passed |
 | `TestInputGuardrails` | Brazilian CPF masking, Credit Card masking, accessory interception, instrument spec exception handling, prompt injection defense | ✅ Passed |
 | `TestOutputGuardrails` | Currency extraction, factual grounding verification against tool payload, hallucination detection, commercial tone modulation | ✅ Passed |
-| `TestAuditStore` | Conversation history persistence, audit telemetry logging, session metrics aggregation, customer session CRM upsert, Observability HUD formatting, session list query, and full transcript retrieval | ✅ Passed |
+| `TestAuditStore` | Conversation history persistence, audit telemetry logging, session metrics aggregation, customer session CRM upsert, Observability HUD formatting, session list query, full transcript retrieval, and session log purging | ✅ Passed |
 | `TestOrchestrator` | Complete conversational turns, tool routing, accessory bypass, order tracking, store policy retrieval, customer authentication flow, and PII redaction | ✅ Passed |
 
 ---
