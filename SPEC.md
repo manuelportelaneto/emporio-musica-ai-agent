@@ -288,19 +288,30 @@ CREATE TABLE IF NOT EXISTS customer_sessions (
 
 ## 7. Evaluator Wrapper & Interactive Lifecycle Experience
 
-To provide a professional experience for technical evaluators, the application is wrapped in an interactive 3-stage lifecycle:
+To provide a professional experience for technical evaluators, the application is wrapped in an interactive 3-stage lifecycle.
 
-### 7.1 Screen 1: Welcome & Engine Configuration
-* **Executive Intro:** Project overview (Empório da Música AI Agent – Artefact Technical Case).
+### 7.0 Language Architecture & Segregation Rule
+* **Evaluator Interface (English Mandatory):** All evaluator-facing screens, setup prompts, tables, dashboards, alerts, metrics, and menus MUST be strictly in **English**.
+* **Retail Conversational Window (Portuguese PT-BR):** Customer-facing dialogue turns (user questions and assistant consultative responses) operate in **Portuguese**, reflecting the Brazilian physical and digital retail context of Campo Grande/MS.
+
+---
+
+### 7.1 Screen 1: Welcome & Engine Configuration (Onboarding)
+* **Executive Intro:** Project overview (Empório da Música Conversational AI Assistant – Artefact Technical Case).
 * **Engine Selection:**
-  * `[1] Modelo Determinístico Offline (Padrão)`: Zero-cost, sub-20ms latency, deterministic tool routing, 100% stable without external dependencies.
-  * `[2] LLM Online (Groq / OpenAI)`:
-    - Evaluator selects provider and model (e.g. `llama-3.3-70b-versatile` or `gpt-4o-mini`).
+  * `[1] Deterministic Offline Engine (Default)`: Zero-cost, sub-20ms latency, deterministic tool routing, 100% stable without external dependencies.
+  * `[2] Online LLM (Groq / OpenAI)`:
+    - Evaluator selects provider and model (e.g., `llama-3.3-70b-versatile` or `gpt-4o-mini`).
     - Secure masked API key prompt (`getpass`).
     - **Ephemeral Security Guarantee:** API keys remain strictly in-memory during execution, are never written to disk or logs, and are wiped immediately upon exiting.
+* **Interface Target Selection:**
+  * `[1] Continue in Terminal CLI (Interactive Rich Terminal)`
+  * `[2] Launch in Browser with Streamlit Web App (Visual UI)`
+
+---
 
 ### 7.2 Screen 2: Active Conversational Environment
-* Interactive Rich chat terminal with live Telemetry HUD displayed after every turn (no emojis in UI frame):
+* Interactive Rich chat terminal with live Telemetry HUD displayed after every turn (strictly text-based, no emojis in UI frame):
   ```text
   ┌─ [TELEMETRY & AUDIT HUD] ───────────────────────────────────────────────────────┐
   │ [RESPONSE TIME] 18ms  |  [TOKENS] 210 (Prompt: 135 / Completion: 75)            │
@@ -310,25 +321,62 @@ To provide a professional experience for technical evaluators, the application i
   ```
 * Exit command: `/exit`, `/finish`, or `/quit` immediately closes the chat turn and transitions to the post-conversation analytics dashboard.
 
+---
+
 ### 7.3 Screen 3: Post-Conversation Executive Analytics & Insights Dashboard
-Rendered as a Rich formatted analytics report displaying:
+Rendered as an English Rich formatted executive report displaying:
 1. **Session Performance Metrics:**
-   - Total conversation duration (e.g. `1m 42s`).
-   - Average agent response time / latency (e.g. `24.5 ms`).
+   - Total conversation duration (e.g., `1m 42s`).
+   - Average agent response time / latency (e.g., `24.5 ms`).
    - Total tokens consumed & average tokens per turn.
    - Ranking of tools and actions invoked.
 2. **Customer Intelligence & CRM Profile:**
-   - Registration status: `Cadastrado (ID #X - Nome)` vs `Visitante / Não Cadastrado`.
-   - Customer Sentiment Assessment: *Positivo*, *Neutro*, *Frustrado*, *Curioso / Entusiasmado*.
-   - Inferred Musical Affinity Tags: e.g. `["violão", "yamaha", "iniciante"]`.
+   - Registration status: `Registered (ID #X - Name)` vs `Guest / Unregistered`.
+   - Customer Sentiment Assessment: *Positive*, *Neutral*, *Frustrated*, *Curious / Enthusiastic*.
+   - Inferred Musical Affinity Tags: e.g., `["violão", "yamaha", "iniciante"]`.
 3. **Multi-Scope System Alerts & Insights:**
-   - **Development Scope (Melhorias de Sistema):** Ambiguous queries detected, search fallbacks triggered, or latency spikes.
-   - **Security Scope (Segurança & Compliance):** Prompt injection attempts, jailbreak attempts, or masked PII occurrences.
-   - **Business Scope (Oportunidades de Negócio):** Products searched that are out-of-stock or non-catalog (e.g. unmet demand for accessories or unstocked brands).
-4. **Evaluator Action Menu:**
-   - `[1] Retornar à conversa atual` (resume chat session)
-   - `[2] Iniciar nova conversa` (reset session for a new clean run)
-   - `[3] Sair do programa` (clean memory wipe and shutdown)
+   - **Development Scope (System Improvements):** Ambiguous queries detected, search fallbacks triggered, or latency spikes.
+   - **Security Scope (Security & Compliance):** Prompt injection attempts, jailbreak attempts, or masked PII occurrences.
+   - **Business Scope (Business Opportunities):** Products searched that are out-of-stock or non-catalog (e.g., unmet demand for accessories or unstocked brands).
+4. **Historical Sessions & Interaction Browser:**
+   - Displays all historical customer sessions saved in SQLite (`conversation_history`), allowing evaluators to review previous conversation transcripts across distinct sessions.
+5. **Evaluator Action Menu:**
+   - `[1] Return to current conversation` (resume chat session)
+   - `[2] Start a new conversation` (reset session for a new clean run)
+   - `[3] View all saved interactions (Audit log & historical sessions)`
+   - `[4] Exit program` (clean memory wipe and shutdown)
+
+---
+
+### 7.4 Streamlit Web Application Implementation Plan
+
+To provide a visual web experience complementing the CLI, a dedicated Streamlit web application (`app.py`) will be implemented following the CLI evaluator layer:
+
+1. **Architecture & File Layout:**
+   - `app.py`: Streamlit main entrypoint importing `ConversationalOrchestrator` and `AuditStore`.
+   - Reuses the identical backend services, guardrails, and SQLite data engine.
+2. **Left Control Sidebar:**
+   - **Engine Mode Selector:** Radio toggle between *Deterministic Offline Engine* and *Online LLM (Groq / OpenAI)*.
+   - **Ephemeral API Key Input:** Masked text input (`type="password"`) stored strictly in `st.session_state` (never written to disk).
+   - **Active Session ID:** Input box to switch or start new isolated sessions (`/session`).
+   - **Cumulative Telemetry Card:** Live widget displaying total session events, total tokens, average response time, and tools invoked.
+3. **Main Workspace (Tabbed Interface):**
+   - **Tab 1: Live Chat Console:**
+     - Streamlit chat message bubbles (`st.chat_message("user")` and `st.chat_message("assistant")`).
+     - Real-Time Observability HUD rendered under each assistant response in a monospace block.
+   - **Tab 2: Executive Analytics & Telemetry:**
+     - Bar chart of tools invoked (`st.bar_chart`).
+     - Latency timeline and token consumption gauges.
+   - **Tab 3: Customer Intelligence & 3-Scope Alerts:**
+     - Customer CRM card (phone, name, address, registration status).
+     - Customer sentiment indicator pill.
+     - Musical affinity tags chips (`st.pills` / badges).
+     - Multi-scope expandable alert containers (Development, Security, Business).
+   - **Tab 4: Historical Sessions Explorer:**
+     - Dropdown to select and inspect any prior conversation stored in `emporio_records.db`.
+4. **Execution Sequence:**
+   - Phase 1: Complete and verify the Evaluator CLI Layer in `src/cli.py`.
+   - Phase 2: Build `app.py` with Streamlit and verify browser interaction.
 
 ---
 
