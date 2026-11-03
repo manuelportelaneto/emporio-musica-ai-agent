@@ -13,7 +13,7 @@ import uuid
 import pandas as pd
 import streamlit as st
 
-from src.orchestrator import AgentOrchestrator
+from src.orchestrator import ConversationalOrchestrator
 from src.storage.audit_store import AuditStore
 
 
@@ -32,7 +32,7 @@ st.set_page_config(
 # Session State Initialization
 # -----------------------------------------------------------------------------
 if "orchestrator" not in st.session_state:
-    st.session_state.orchestrator = AgentOrchestrator()
+    st.session_state.orchestrator = ConversationalOrchestrator()
 
 if "audit_store" not in st.session_state:
     st.session_state.audit_store = AuditStore()
@@ -192,34 +192,14 @@ with tab_chat:
 
         # Process via Orchestrator
         with st.spinner("Processing turn with guardrails & tools..."):
-            start_t = time.time()
-            result = st.session_state.orchestrator.handle_user_turn(
+            result = st.session_state.orchestrator.process_turn(
                 st.session_state.session_id, user_input
             )
-            elapsed_ms = (time.time() - start_t) * 1000.0
 
         # Display assistant message
         with st.chat_message("assistant"):
-            st.write(result["response"])
-
-            # Formatted Telemetry HUD
-            tool_name = result.get("tool_invoked") or "None (Direct Intent)"
-            latency = result.get("latency_ms", elapsed_ms)
-            p_tokens = result.get("prompt_tokens", 0)
-            c_tokens = result.get("completion_tokens", 0)
-            tot_tokens = p_tokens + c_tokens
-
-            st.markdown(
-                f"""
-                ```text
-                ┌─ [TELEMETRY & AUDIT HUD] ────────────────────────────────────────────────────────┐
-                │ [RESPONSE TIME] {latency:.1f}ms  |  [TOKENS] {tot_tokens} (Prompt: {p_tokens} / Comp: {c_tokens})         │
-                │ [TOOL INVOKED]  {tool_name:<65}│
-                │ [GUARDRAILS]    Scope Passed | Factual Grounding: 100% Verified                  │
-                └──────────────────────────────────────────────────────────────────────────────────┘
-                ```
-                """
-            )
+            st.write(result.response_text)
+            st.text(result.telemetry_hud)
 
         # Rerun to update sidebars and state
         st.rerun()

@@ -795,3 +795,8 @@ class ConversationalOrchestrator:
             guardrails_summary=guard_summary,
             telemetry_hud=hud,
         )
+
+
+# Backward-compatible alias
+AgentOrchestrator = ConversationalOrchestrator
+
