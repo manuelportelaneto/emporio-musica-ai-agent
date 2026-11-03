@@ -61,6 +61,25 @@ class AuditStore:
                 """
             )
 
+            # 3. Customer Session Summary & Analytics CRM
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS customer_sessions (
+                    session_id TEXT PRIMARY KEY,
+                    customer_id INTEGER,
+                    phone TEXT,
+                    customer_name TEXT,
+                    affinity_tags TEXT,
+                    sentiment_score TEXT,
+                    interaction_category TEXT,
+                    alerts_detected TEXT,
+                    total_duration_sec INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                """
+            )
+
             # Helpful indices for fast querying
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_conv_session ON conversation_history(session_id);"
@@ -234,6 +253,75 @@ class AuditStore:
                 "guardrails_triggered": row["guardrails_triggered"] or 0,
             }
 
+    def save_customer_session(
+        self,
+        session_id: str,
+        customer_id: Optional[int] = None,
+        phone: Optional[str] = None,
+        customer_name: Optional[str] = None,
+        affinity_tags: Optional[List[str]] = None,
+        sentiment_score: str = "Neutro",
+        interaction_category: str = "Consulta Catálogo",
+        alerts_detected: Optional[List[Dict[str, Any]]] = None,
+        total_duration_sec: int = 0,
+    ) -> None:
+        """Upsert customer session analytics and CRM profile."""
+        tags_json = json.dumps(affinity_tags or [], ensure_ascii=False)
+        alerts_json = json.dumps(alerts_detected or [], ensure_ascii=False)
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO customer_sessions (
+                    session_id, customer_id, phone, customer_name,
+                    affinity_tags, sentiment_score, interaction_category,
+                    alerts_detected, total_duration_sec, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(session_id) DO UPDATE SET
+                    customer_id = COALESCE(excluded.customer_id, customer_sessions.customer_id),
+                    phone = COALESCE(excluded.phone, customer_sessions.phone),
+                    customer_name = COALESCE(excluded.customer_name, customer_sessions.customer_name),
+                    affinity_tags = excluded.affinity_tags,
+                    sentiment_score = excluded.sentiment_score,
+                    interaction_category = excluded.interaction_category,
+                    alerts_detected = excluded.alerts_detected,
+                    total_duration_sec = excluded.total_duration_sec,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    session_id,
+                    customer_id,
+                    phone,
+                    customer_name,
+                    tags_json,
+                    sentiment_score,
+                    interaction_category,
+                    alerts_json,
+                    total_duration_sec,
+                ),
+            )
+            conn.commit()
+
+    def get_customer_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve customer session CRM profile."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM customer_sessions WHERE session_id = ?", (session_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            res = dict(row)
+            try:
+                res["affinity_tags"] = json.loads(res.get("affinity_tags") or "[]")
+            except Exception:
+                res["affinity_tags"] = []
+            try:
+                res["alerts_detected"] = json.loads(res.get("alerts_detected") or "[]")
+            except Exception:
+                res["alerts_detected"] = []
+            return res
+
     @staticmethod
     def format_telemetry_hud(
         latency_ms: float,
@@ -245,7 +333,7 @@ class AuditStore:
         """Render Observability HUD string per SPEC.md Section 7."""
         tool_display = tool_invoked or "None (Direct/Intercepted)"
         total_tokens = prompt_tokens + completion_tokens
-        line1 = f"[LATENCY] {latency_ms:.0f}ms  |  [TOKENS] {total_tokens} (Prompt: {prompt_tokens} / Completion: {completion_tokens})"
+        line1 = f"[RESPONSE TIME] {latency_ms:.0f}ms  |  [TOKENS] {total_tokens} (Prompt: {prompt_tokens} / Completion: {completion_tokens})"
         line2 = f"[TOOL INVOKED] {tool_display}"
         line3 = f"[GUARDRAILS] {guardrails_summary}"
 

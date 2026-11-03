@@ -7,6 +7,11 @@ import pytest
 
 from src.data_engine import PolicyVectorIndex, init_sqlite_engine
 from src.services.catalog_service import calculate_installments, lookup_catalog
+from src.services.customer_service import (
+    authenticate_or_register_customer,
+    normalize_phone,
+    update_customer_profile,
+)
 from src.services.order_service import calculate_return_eligibility, get_order_details
 from src.services.policy_service import query_store_policy
 
@@ -135,3 +140,47 @@ class TestPolicyService:
         assert result["found"] is True
         excerpts_text = " ".join([e["content"] for e in result["excerpts"]])
         assert any(term in excerpts_text.lower() for term in ["campo grande", "frete", "entrega", "correios", "sedex"])
+
+
+class TestCustomerService:
+    def test_normalize_phone(self):
+        assert normalize_phone("(67) 99812-3456") == "67998123456"
+        assert normalize_phone("67 99988-7766") == "67999887766"
+        assert normalize_phone("") == ""
+
+    def test_authenticate_existing_customer(self, db_conn):
+        # Lucas Mendes da Silva: (67) 99812-3456
+        res = authenticate_or_register_customer(
+            conn=db_conn,
+            name="Lucas Mendes",
+            phone="67998123456",
+        )
+        assert res["status"] == "authenticated"
+        assert res["is_new"] is False
+        assert "Lucas" in res["name"]
+        assert len(res["recent_orders"]) > 0
+
+    def test_register_new_customer(self, db_conn):
+        new_phone = "67911223344"
+        res = authenticate_or_register_customer(
+            conn=db_conn,
+            name="Marina Silva",
+            phone=new_phone,
+            birth_date="10/05/1995",
+        )
+        assert res["status"] == "registered"
+        assert res["is_new"] is True
+        assert res["customer_id"] > 0
+        assert res["name"] == "Marina Silva"
+
+    def test_update_customer_profile(self, db_conn):
+        phone = "67911223344"
+        res = update_customer_profile(
+            conn=db_conn,
+            phone=phone,
+            address="Rua dos Ipês, 150 - Campo Grande/MS",
+            musical_interests=["violão", "yamaha", "iniciante"],
+        )
+        assert res["status"] == "updated"
+        assert res["address"] == "Rua dos Ipês, 150 - Campo Grande/MS"
+        assert "violão" in res["updated_interests"]

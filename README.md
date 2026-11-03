@@ -198,15 +198,15 @@ Adhering to strict technical evaluation guidelines, progress is deployed via fre
 * **Real-Time Observability HUD:** Below every conversational turn, the system outputs an executive telemetry card (strictly text-based, without emojis in UI elements for a professional presentation):
   ```text
   ┌─ [TELEMETRY & AUDIT HUD] ───────────────────────────────────────────────────────┐
-  │ [LATENCY] 412ms  |  [TOKENS] 184 (Prompt: 128 / Completion: 56)                │
+  │ [RESPONSE TIME] 18ms  |  [TOKENS] 184 (Prompt: 128 / Completion: 56)           │
   │ [TOOL INVOKED] lookup_catalog(query="Yamaha C40", in_stock_only=True)          │
   │ [GUARDRAILS] Scope Passed | Factual Grounding: 100% Verified                  │
   └────────────────────────────────────────────────────────────────────────────────┘
   ```
 
 ### 6.4 Agent Core & Native Tool Calling (Step 5)
-* **Typed Tool Schemas (`TOOLS_SCHEMA`):** Exposes JSON Schema-compliant function definitions for `lookup_catalog`, `get_order_details`, and `query_store_policy` to Groq (`llama-3.3-70b-versatile`) and OpenAI (`gpt-4o-mini`).
-* **Consultative Persona:** Musically knowledgeable, friendly, and respectful ("fellow musician" persona). Natural invitations to visit the Campo Grande store (Rua 14 de Maio, 3200) to test timbre and ergonomics in person.
+* **Typed Tool Schemas (`TOOLS_SCHEMA`):** Exposes JSON Schema-compliant function definitions for `lookup_catalog`, `get_order_details`, `query_store_policy`, `authenticate_or_register_customer`, and `update_customer_profile`.
+* **Consultative Persona:** Musically knowledgeable, friendly, and respectful ("fellow musician" persona). Natural invitations to visit the Campo Grande store (Rua 14 de Maio, 3200) strictly when contextually appropriate (e.g. testing acoustic resonance or asking for store address).
 * **Intelligent Dual-Execution Architecture:** If live LLM credentials are provided, runs native function calling with two-pass tool response synthesis. If running offline/test mode, falls back to deterministic intent routing while exercising the exact same backend tools and guardrails.
 
 ### 6.5 Interactive CLI & Mandatory Business Scenarios (Step 6)
@@ -232,16 +232,17 @@ source .venv/bin/activate
 pytest tests/ -v
 ```
 
-### Test Results Summary (30 Passed)
+### Test Results Summary (36 Passed)
 | Test Suite | Scope | Status |
 | :--- | :--- | :--- |
 | `TestCatalogService` | SQLite tables population, query matching, 5% PIX discount, non-cumulative promotions, installment tiers (12x/6x/3x) | ✅ Passed |
 | `TestOrderService` | Order lookup by ID, lookup by customer name, CDC 7-day remorse calculation ($\le 7\text{ days}$ eligible, $> 7\text{ days}$ expired, undelivered handling) | ✅ Passed |
 | `TestPolicyService` | Policy manual semantic search, store address (Rua 14 de Maio 3200), motoboy delivery rules | ✅ Passed |
+| `TestCustomerService` | Phone normalization, progressive authentication with recent orders, dynamic customer registration, and profile updates | ✅ Passed |
 | `TestInputGuardrails` | Brazilian CPF masking, Credit Card masking, accessory interception, instrument spec exception handling, prompt injection defense | ✅ Passed |
 | `TestOutputGuardrails` | Currency extraction, factual grounding verification against tool payload, hallucination detection, commercial tone modulation | ✅ Passed |
-| `TestAuditStore` | Conversation history persistence, audit telemetry logging, session metrics aggregation, Observability HUD formatting | ✅ Passed |
-| `TestOrchestrator` | Complete conversational turns, tool routing, accessory bypass, order tracking, store policy retrieval, and PII redaction | ✅ Passed |
+| `TestAuditStore` | Conversation history persistence, audit telemetry logging, session metrics aggregation, customer session CRM upsert, Observability HUD formatting | ✅ Passed |
+| `TestOrchestrator` | Complete conversational turns, tool routing, accessory bypass, order tracking, store policy retrieval, customer authentication flow, and PII redaction | ✅ Passed |
 
 ---
 

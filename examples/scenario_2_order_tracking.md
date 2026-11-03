@@ -13,11 +13,11 @@
 
 **Consultor Empório da Música:**
 
-Localizei seu pedido #1 no sistema! Itens: Martin D-28 Dreadnought Natural (Qtd: 1). Status atual: DELIVERED. Código de rastreamento: BRAB1234567BR. Prazo de 7 dias corridos de arrependimento (CDC) expirado (entregue há 373 dias). Válida apenas a garantia da loja de 30 dias para defeitos de fabricação. Se precisar de suporte adicional, nossa equipe na Rua 14 de Maio, 3200 está à disposição!
+Localizei seu pedido #1 no sistema! Itens: Martin D-28 Dreadnought Natural (Qtd: 1). Status atual: DELIVERED. Código de rastreamento: BRAB1234567BR. Prazo de 7 dias corridos de arrependimento (CDC) expirado (entregue há 373 dias). Válida apenas a garantia da loja de 30 dias para defeitos de fabricação.
 
 ```text
 ┌─ [TELEMETRY & AUDIT HUD] ───────────────────────────────────────────────────────┐
-│ [LATENCY] 8ms  |  [TOKENS] 175 (Prompt: 110 / Completion: 65)                 │
+│ [RESPONSE TIME] 12ms  |  [TOKENS] 175 (Prompt: 110 / Completion: 65)          │
 │ [TOOL INVOKED] get_order_details(order_id=1)                                  │
 │ [GUARDRAILS] Scope Passed | Factual Grounding: 100% Verified                  │
 └────────────────────────────────────────────────────────────────────────────────┘
@@ -32,18 +32,12 @@ Localizei seu pedido #1 no sistema! Itens: Martin D-28 Dreadnought Natural (Qtd:
 
 **Consultor Empório da Música:**
 
-Encontrei excelentes opções no nosso catálogo para você:
-
-• Shelby SU-21S Soprano Sunburst: Preço regular R$ 159.90, à vista no PIX por R$ 151.91 ou parcelado em 3x de R$ 53.30 sem juros.
-• Kalani KAL-300S Soprano Natural: Preço regular R$ 179.90, à vista no PIX por R$ 170.91 ou parcelado em 3x de R$ 59.97 sem juros.
-• Kala KA-15S Soprano Mogno: Preço regular R$ 199.90, à vista no PIX por R$ 189.91 ou parcelado em 3x de R$ 66.63 sem juros.
-
-Lembrando que o pagamento via PIX conta com 5% de desconto à vista! Se estiver em Campo Grande, te convido a passar na nossa loja na Rua 14 de Maio, 3200 para sentir o timbre e a pegada de perto!
+Para consultar os detalhes do seu pedido com segurança, você poderia me informar o número do pedido ou o seu telefone de cadastro com DDD?
 
 ```text
 ┌─ [TELEMETRY & AUDIT HUD] ───────────────────────────────────────────────────────┐
-│ [LATENCY] 14ms  |  [TOKENS] 225 (Prompt: 140 / Completion: 85)                │
-│ [TOOL INVOKED] get_order_details(order_id=None), lookup_catalog(query='Obrigado! Qual o cód') │
+│ [RESPONSE TIME] 11ms  |  [TOKENS] 135 (Prompt: 90 / Completion: 45)           │
+│ [TOOL INVOKED] get_order_details(order_id=None)                               │
 │ [GUARDRAILS] Scope Passed | Factual Grounding: 100% Verified                  │
 └────────────────────────────────────────────────────────────────────────────────┘
 ```

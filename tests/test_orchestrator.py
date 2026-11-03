@@ -57,8 +57,18 @@ class TestOrchestrator:
         assert "Yamaha C40" in resp.response_text
         assert "PIX" in resp.response_text
         assert any("lookup_catalog" in t for t in resp.tools_invoked)
-        assert "14 de Maio" in resp.response_text or "Campo Grande" in resp.response_text
         assert "TELEMETRY & AUDIT HUD" in resp.telemetry_hud
+
+    def test_customer_authentication_flow(self, orchestrator):
+        session = "session-test-auth"
+        resp = orchestrator.process_turn(session, "Olá, meu nome é Lucas Mendes e meu telefone é (67) 99812-3456")
+
+        assert "Lucas" in resp.response_text
+        assert any("authenticate_or_register_customer" in t for t in resp.tools_invoked)
+        sess = orchestrator.audit_store.get_customer_session(session)
+        assert sess is not None
+        assert "Lucas" in sess["customer_name"]
+        assert sess["customer_id"] == 1
 
     def test_order_tracking_flow(self, orchestrator):
         session = "session-test-ord"

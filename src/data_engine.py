@@ -78,11 +78,15 @@ def init_sqlite_engine(data_dir: str = "data") -> sqlite3.Connection:
     cursor.execute(
         """
         CREATE TABLE customers (
-            customer_id INTEGER PRIMARY KEY,
+            customer_id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             phone TEXT NOT NULL,
-            email TEXT NOT NULL,
-            city TEXT
+            email TEXT,
+            city TEXT,
+            birth_date TEXT,
+            address TEXT,
+            musical_interests TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
     )

@@ -13,11 +13,11 @@
 
 **Consultor Empório da Música:**
 
-A Empório da Música está localizada na Rua 14 de Maio, 3200 — Centro, em Campo Grande/MS (CEP 79202-333). Para a Grande Campo Grande, temos entrega via motoboy com frete grátis acima de R$ 500 (ou taxa fixa de R$ 35 abaixo desse valor). Nossa política de trocas segue o CDC com 7 dias corridos de arrependimento e 30 dias de garantia para defeitos. Para mais dúvidas, nosso telefone é (67) 3341-4444. Venha nos visitar e experimentar nossos instrumentos pessoalmente!
+Para a Grande Campo Grande, temos entrega via motoboy com frete grátis em compras acima de R$ 500 (ou taxa fixa de R$ 35 abaixo desse valor). Envios para outros estados são feitos via Correios (SEDEX/PAC) e Jadlog. Nossa política de trocas segue o Código de Defesa do Consumidor com 7 dias corridos de arrependimento e 30 dias de garantia contra defeitos de fabricação.
 
 ```text
 ┌─ [TELEMETRY & AUDIT HUD] ───────────────────────────────────────────────────────┐
-│ [LATENCY] 7ms  |  [TOKENS] 150 (Prompt: 95 / Completion: 55)                  │
+│ [RESPONSE TIME] 9ms  |  [TOKENS] 150 (Prompt: 95 / Completion: 55)            │
 │ [TOOL INVOKED] query_store_policy(topic='Recebi meu instrumen')               │
 │ [GUARDRAILS] Scope Passed | Factual Grounding: 100% Verified                  │
 └────────────────────────────────────────────────────────────────────────────────┘
@@ -32,11 +32,11 @@ A Empório da Música está localizada na Rua 14 de Maio, 3200 — Centro, em Ca
 
 **Consultor Empório da Música:**
 
-A Empório da Música está localizada na Rua 14 de Maio, 3200 — Centro, em Campo Grande/MS (CEP 79202-333). Para a Grande Campo Grande, temos entrega via motoboy com frete grátis acima de R$ 500 (ou taxa fixa de R$ 35 abaixo desse valor). Nossa política de trocas segue o CDC com 7 dias corridos de arrependimento e 30 dias de garantia para defeitos. Para mais dúvidas, nosso telefone é (67) 3341-4444. Venha nos visitar e experimentar nossos instrumentos pessoalmente!
+Para a Grande Campo Grande, temos entrega via motoboy com frete grátis em compras acima de R$ 500 (ou taxa fixa de R$ 35 abaixo desse valor). Envios para outros estados são feitos via Correios (SEDEX/PAC) e Jadlog. Nossa política de trocas segue o Código de Defesa do Consumidor com 7 dias corridos de arrependimento e 30 dias de garantia contra defeitos de fabricação.
 
 ```text
 ┌─ [TELEMETRY & AUDIT HUD] ───────────────────────────────────────────────────────┐
-│ [LATENCY] 7ms  |  [TOKENS] 150 (Prompt: 95 / Completion: 55)                  │
+│ [RESPONSE TIME] 8ms  |  [TOKENS] 150 (Prompt: 95 / Completion: 55)            │
 │ [TOOL INVOKED] query_store_policy(topic='E se já tiver passad')               │
 │ [GUARDRAILS] Scope Passed | Factual Grounding: 100% Verified                  │
 └────────────────────────────────────────────────────────────────────────────────┘

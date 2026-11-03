@@ -17,11 +17,11 @@ Encontrei excelentes opções no nosso catálogo para você:
 
 • Yamaha C40 Nylon Natural: Preço regular R$ 599.90, à vista no PIX por R$ 569.90 ou parcelado em 6x de R$ 99.98 sem juros.
 
-Lembrando que o pagamento via PIX conta com 5% de desconto à vista! Se estiver em Campo Grande, te convido a passar na nossa loja na Rua 14 de Maio, 3200 para sentir o timbre e a pegada de perto!
+Lembrando que o pagamento via PIX conta com 5% de desconto à vista sobre o preço de tabela! Qual desses modelos chama mais sua atenção? Posso te detalhar as madeiras, a tocabilidade ou simular outro plano de parcelamento.
 
 ```text
 ┌─ [TELEMETRY & AUDIT HUD] ───────────────────────────────────────────────────────┐
-│ [LATENCY] 14ms  |  [TOKENS] 225 (Prompt: 140 / Completion: 85)                │
+│ [RESPONSE TIME] 16ms  |  [TOKENS] 225 (Prompt: 140 / Completion: 85)          │
 │ [TOOL INVOKED] lookup_catalog(query='yamaha c40')                             │
 │ [GUARDRAILS] Scope Passed | Factual Grounding: 100% Verified                  │
 └────────────────────────────────────────────────────────────────────────────────┘
@@ -40,7 +40,7 @@ Na Empório da Música facilitamos sua compra! Para pagamento à vista no PIX, v
 
 ```text
 ┌─ [TELEMETRY & AUDIT HUD] ───────────────────────────────────────────────────────┐
-│ [LATENCY] 8ms  |  [TOKENS] 170 (Prompt: 110 / Completion: 60)                 │
+│ [RESPONSE TIME] 8ms  |  [TOKENS] 170 (Prompt: 110 / Completion: 60)           │
 │ [TOOL INVOKED] query_store_policy(topic='pagamento pix cartão')               │
 │ [GUARDRAILS] Scope Passed | Factual Grounding: 100% Verified                  │
 └────────────────────────────────────────────────────────────────────────────────┘

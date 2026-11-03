@@ -100,3 +100,25 @@ class TestAuditStore:
         assert "[TOKENS] 184" in hud
         assert "lookup_catalog" in hud
         assert "100% Verified" in hud
+        assert "[RESPONSE TIME]" in hud
+
+    def test_customer_session_crm(self, temp_audit_store):
+        session = "session-crm-test"
+        temp_audit_store.save_customer_session(
+            session_id=session,
+            customer_id=1,
+            phone="67998123456",
+            customer_name="Lucas Mendes",
+            affinity_tags=["violão", "yamaha"],
+            sentiment_score="Positivo",
+            interaction_category="Consulta Catálogo",
+            alerts_detected=[{"scope": "business", "message": "Cliente buscou afinador"}],
+            total_duration_sec=45,
+        )
+
+        sess = temp_audit_store.get_customer_session(session)
+        assert sess is not None
+        assert sess["customer_name"] == "Lucas Mendes"
+        assert sess["sentiment_score"] == "Positivo"
+        assert "violão" in sess["affinity_tags"]
+        assert len(sess["alerts_detected"]) == 1
