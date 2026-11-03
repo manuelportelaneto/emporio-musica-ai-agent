@@ -8,6 +8,7 @@ Security: Ephemeral in-memory API key handling with seamless CLI cross-persisten
 """
 
 import os
+import re
 import time
 import uuid
 import pandas as pd
@@ -214,8 +215,10 @@ with st.sidebar:
     metrics = st.session_state.audit_store.get_session_metrics(st.session_state.session_id)
     kpi_col1, kpi_col2 = st.columns(2)
     kpi_col1.metric("Turns", metrics.get("total_turns", 0))
-    kpi_col2.metric("Avg Latency", f"{metrics.get('avg_latency_ms', 0):.1f} ms")
-    st.metric("Total Tokens", metrics.get("total_tokens", 0))
+    avg_ms = metrics.get("avg_latency_ms", 0.0)
+    latency_str = f"{avg_ms / 1000.0:.2f} s" if avg_ms >= 1000 else f"{int(avg_ms)} ms"
+    kpi_col2.metric("Avg Latency", latency_str)
+    st.metric("Total Tokens", f"{metrics.get('total_tokens', 0):,}")
 
     st.caption("Security Notice: All customer interactions are sanitized for PII compliance.")
 
@@ -299,9 +302,10 @@ with tab_analytics:
     # 4 Key Metrics
     col_m1, col_m2, col_m3, col_m4 = st.columns(4)
     col_m1.metric("Total Conversational Turns", curr_metrics.get("total_turns", 0))
-    col_m2.metric("Average Response Latency", f"{curr_metrics.get('avg_latency_ms', 0):.1f} ms")
-    col_m3.metric("Prompt Tokens Consumed", curr_metrics.get("prompt_tokens", 0))
-    col_m4.metric("Completion Tokens", curr_metrics.get("completion_tokens", 0))
+    avg_tab_ms = curr_metrics.get("avg_latency_ms", 0.0)
+    col_m2.metric("Average Response Latency", f"{avg_tab_ms:.1f} ms ({avg_tab_ms / 1000.0:.2f} s)" if avg_tab_ms >= 1000 else f"{avg_tab_ms:.1f} ms")
+    col_m3.metric("Prompt Tokens Consumed", f"{curr_metrics.get('prompt_tokens', 0):,}")
+    col_m4.metric("Completion Tokens", f"{curr_metrics.get('completion_tokens', 0):,}")
 
     st.markdown("---")
 
@@ -384,6 +388,70 @@ with tab_crm:
             st.success(f"Qualified lead: {crm_data.get('customer_name')}")
         else:
             st.caption("Awaiting customer authentication or product inquiry.")
+
+    st.markdown("---")
+
+    # Evaluator Customer Directory (LGPD Compliant Sandbox)
+    st.subheader("👥 Directory of Seed Customers (Evaluator Simulation Sandbox)")
+    st.caption(
+        "Pre-loaded customer profiles with order histories from SQLite, sanitized for LGPD compliance. "
+        "Use these identities to test progressive profiling, return policies, and order tracking."
+    )
+
+    try:
+        db_conn = st.session_state.orchestrator.db_conn
+        cursor = db_conn.cursor()
+        cursor.execute(
+            """
+            SELECT 
+                c.customer_id,
+                c.name,
+                c.phone,
+                c.city,
+                COUNT(o.order_id) as total_orders,
+                GROUP_CONCAT('Pedido #' || o.order_id || ' (' || o.status || ', R$ ' || printf('%.2f', o.total_amount) || ')', ' | ') as orders_summary
+            FROM customers c
+            LEFT JOIN orders o ON c.customer_id = o.customer_id
+            GROUP BY c.customer_id
+            ORDER BY total_orders DESC, c.customer_id ASC
+            LIMIT 15
+            """
+        )
+        cust_rows = cursor.fetchall()
+        
+        directory_data = []
+        for row in cust_rows:
+            raw_phone = str(row["phone"] or "")
+            digits = re.sub(r"\D", "", raw_phone)
+            # LGPD Masking: Preserve DDD and last 4 digits (e.g. (67) 9****-3456)
+            if len(digits) == 11:
+                masked_phone = f"({digits[:2]}) 9****-{digits[-4:]}"
+                unformatted_input = digits
+            elif len(digits) == 10:
+                masked_phone = f"({digits[:2]}) ****-{digits[-4:]}"
+                unformatted_input = digits
+            else:
+                masked_phone = "(67) 9****-****"
+                unformatted_input = "67998123456"
+
+            directory_data.append({
+                "Customer ID": f"#{row['customer_id']}",
+                "Customer Name": row["name"],
+                "Masked Phone (LGPD)": masked_phone,
+                "City": row["city"] or "Campo Grande",
+                "Orders on File": row["total_orders"] or 0,
+                "Past Orders Summary": row["orders_summary"] or "None (New Prospect)",
+                "Simulation Input (Phone)": unformatted_input,
+            })
+
+        st.dataframe(pd.DataFrame(directory_data), width="stretch")
+        st.info(
+            "💡 **Evaluator Simulation Quick Guide:**\n"
+            "- **To test Order Tracking / CDC Return:** Use **Pedro Henrique** (`67984321098`) with **Pedido #1** (Martin D-28) or **Thiago Barbosa** (`67983216543`) with **Pedido #2** (Taylor 110e).\n"
+            "- **To test Anonymous to Registered Flow:** Start chatting without identifying yourself, select an instrument (e.g. PRS SE Custom 24), then provide **Lucas Mendes** (`67998123456`) or your own number."
+        )
+    except Exception as e:
+        st.warning(f"Could not load customer directory: {e}")
 
 
 # -----------------------------------------------------------------------------

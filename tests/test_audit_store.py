@@ -172,3 +172,31 @@ class TestAuditStore:
         assert len(temp_audit_store.get_conversation_history(session)) == 0
         assert len(temp_audit_store.get_session_audit_logs(session)) == 0
 
+    def test_get_session_metrics_includes_turns_and_tool_invocations(self, temp_audit_store):
+        session = "session-kpi-metrics"
+        temp_audit_store.save_message(session, "user", "Turn 1")
+        temp_audit_store.save_message(session, "assistant", "Bot 1")
+        temp_audit_store.save_message(session, "user", "Turn 2")
+        temp_audit_store.save_message(session, "assistant", "Bot 2")
+
+        temp_audit_store.log_audit_event(
+            session_id=session,
+            event_type="TOOL_INVOCATION",
+            component_name="lookup_catalog",
+            latency_ms=12.5,
+        )
+        temp_audit_store.log_audit_event(
+            session_id=session,
+            event_type="AGENT_RESPONSE",
+            component_name="orchestrator",
+            latency_ms=500.0,
+            prompt_tokens=100,
+            completion_tokens=50,
+        )
+
+        metrics = temp_audit_store.get_session_metrics(session)
+        assert metrics["total_turns"] == 2
+        assert metrics["tool_invocations"]["lookup_catalog"] == 1
+        assert metrics["total_tokens"] == 150
+        assert metrics["avg_latency_ms"] > 0
+

@@ -68,6 +68,12 @@ SYSTEM_PROMPT = """Você é o consultor de atendimento inteligente da Empório d
        - PIX: 5% de desconto à vista sobre o preço de tabela do instrumento (não cumulativo com itens em promoção).
        - Cartão de crédito: parcelamento em até 12x sem juros (respeitando parcelas mínimas de R$ 100 para 7-12x; R$ 80 para 4-6x; R$ 50 para até 3x).
      * Apresente os valores calculados de forma clara, simpática e profissional para o cliente.
+12. **Devoluções, Cancelamentos e Rastreamento de Pedidos (#1, #2...):**
+   - Quando o cliente solicitar devolução, troca, cancelamento ou rastreamento de um pedido, invoque imediatamente `get_order_details`.
+   - Se o cliente responder apenas com o número do pedido ou hashtag (ex: '#2', 'pedido 2', '2') após você ter solicitado o número do pedido, NUNCA confunda isso com busca de instrumentos no catálogo! Invoque imediatamente `get_order_details(order_id=2)`.
+   - Analise os dados retornados pelo serviço de pedidos:
+     * Se o pedido estiver entregue há até 7 dias corridos: confirme que o cliente está plenamente amparado pelo Artigo 49 do CDC (Direito de Arrependimento) para troca ou reembolso integral e oriente os passos de devolução.
+     * Se o pedido foi entregue há mais de 7 dias corridos: explique educadamente que o prazo legal de arrependimento de 7 dias expirou, mas destaque que nossa garantia de 30 dias para defeitos de fabricação continua à disposição caso o produto apresente qualquer problema técnico.
 """
 
 TOOLS_SCHEMA = [
@@ -374,10 +380,17 @@ class ConversationalOrchestrator:
                 in_stock_only=arguments.get("in_stock_only", True),
             )
         elif tool_name == "get_order_details":
+            raw_id = arguments.get("order_id")
+            order_id = int(raw_id) if raw_id is not None and str(raw_id).isdigit() else None
+            phone_or_name = (
+                arguments.get("customer_name_or_phone")
+                or arguments.get("phone")
+                or arguments.get("customer_name")
+            )
             return get_order_details(
                 conn=self.db_conn,
-                order_id=arguments.get("order_id"),
-                customer_name_or_phone=arguments.get("customer_name_or_phone"),
+                order_id=order_id,
+                customer_name_or_phone=phone_or_name,
             )
         elif tool_name == "query_store_policy":
             return query_store_policy(
@@ -599,39 +612,69 @@ class ConversationalOrchestrator:
                 )
                 return ans, tools_called, tool_payloads, 115, 65
 
-        # 4. Check order tracking intent
-        if any(w in lowered for w in ["pedido", "rastreio"]):
+        # 4. Check order tracking, cancellation or CDC return intent (#1, #2, devolver, cancelar, etc.)
+        order_keywords = [
+            "pedido", "pedidos", "rastreio", "rastrear", "devolver", "devolução",
+            "devolucao", "cancelar", "cancelamento", "troca", "trocar", "arrependimento"
+        ]
+        has_order_keyword = any(w in lowered for w in order_keywords)
+        has_hash_number = bool(re.search(r"#\s*\d+", lowered))
+        is_isolated_number = bool(re.match(r"^\s*#?\d{1,5}\s*$", lowered))
+        pending_order = session_state.get("pending_intent") == "order_inquiry"
+
+        if has_order_keyword or has_hash_number or (is_isolated_number and pending_order) or is_isolated_number:
+            id_match = re.search(r"#?\s*(\d{1,5})\b", user_text)
             order_id = None
-            id_match = re.search(r"\bpedido\s*#?(\d+)\b", lowered) or re.search(r"\b(\d{1,4})\b", lowered)
             if id_match:
                 try:
                     order_id = int(id_match.group(1))
                 except ValueError:
                     pass
 
-            name_match = session_state.get("customer_name")
-            for sample in ["lucas", "ana", "pedro", "mariana"]:
+            name_or_phone = session_state.get("phone") or session_state.get("customer_name")
+            for sample in ["lucas", "ana", "pedro", "mariana", "thiago", "rodrigo", "fernanda"]:
                 if sample in lowered:
-                    name_match = sample
+                    name_or_phone = sample
+                    break
 
-            res = self._execute_tool("get_order_details", {"order_id": order_id, "customer_name_or_phone": name_match})
-            tools_called.append(f"get_order_details(order_id={order_id})")
-            tool_payloads.append(res or {})
+            # If user provided order_id or name/phone, query order
+            if order_id or name_or_phone:
+                res = self._execute_tool("get_order_details", {"order_id": order_id, "customer_name_or_phone": name_or_phone})
+                tools_called.append(f"get_order_details(order_id={order_id})")
+                tool_payloads.append(res or {})
 
-            if res:
-                ret = res["return_policy"]
-                items_desc = ", ".join([f"{it['name']} (Qtd: {it['quantity']})" for it in res["items"]])
-                ans = (
-                    f"Localizei seu pedido #{res['order_id']} no sistema! "
-                    f"Itens: {items_desc}. Status atual: {res['status'].upper()}. "
-                    f"Código de rastreamento: {res['tracking_code']}. "
-                    f"{ret['reason']}"
-                )
-                return ans, tools_called, tool_payloads, 110, 65
+                if res:
+                    session_state.pop("pending_intent", None)
+                    self.session_profiles[session_id] = session_state
+                    ret = res["return_policy"]
+                    items_desc = ", ".join([f"{it['name']} (Qtd: {it['quantity']})" for it in res["items"]])
+                    
+                    delivery_info = f" (entregue em {res['delivery_date']})" if res.get("delivery_date") else ""
+                    ans = (
+                        f"Localizei o pedido #{res['order_id']} no sistema! 📦\n\n"
+                        f"• **Titular:** {res['customer']['name']}\n"
+                        f"• **Item:** {items_desc}\n"
+                        f"• **Status:** {res['status'].upper()}{delivery_info}\n"
+                        f"• **Código de Rastreamento:** {res['tracking_code']}\n\n"
+                        f"**Política de Devolução & Garantia (CDC):**\n"
+                        f"{ret['reason']}\n\n"
+                        f"Se precisar de suporte com a garantia de 30 dias para defeitos de fabricação ou qualquer outra dúvida, estou à disposição!"
+                    )
+                    return ans, tools_called, tool_payloads, 110, 65
+                else:
+                    session_state["pending_intent"] = "order_inquiry"
+                    self.session_profiles[session_id] = session_state
+                    ans = (
+                        "Para consultar ou solicitar a devolução do seu pedido com total segurança, você poderia me informar "
+                        "o **número do pedido** (ex: #1, #2) ou o seu **telefone com DDD** de cadastro?"
+                    )
+                    return ans, tools_called, tool_payloads, 90, 45
             else:
+                session_state["pending_intent"] = "order_inquiry"
+                self.session_profiles[session_id] = session_state
                 ans = (
-                    "Para consultar os detalhes do seu pedido com segurança, você poderia me informar "
-                    "o número do pedido ou o seu telefone de cadastro com DDD apenas em números, sem pontos, traços ou parênteses (ex: 67998123456)?"
+                    "Com certeza, posso te orientar sobre status, rastreamento ou devoluções pelo CDC! "
+                    "Poderia me informar o **número do pedido** (ex: #1, #2) ou o **telefone com DDD** cadastrado na compra?"
                 )
                 return ans, tools_called, tool_payloads, 90, 45
 

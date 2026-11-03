@@ -295,7 +295,29 @@ class AuditStore:
                 (session_id,),
             )
             row = cursor.fetchone()
+
+            # Query real conversational user turns from conversation history
+            cursor.execute(
+                "SELECT COUNT(*) as turns FROM conversation_history WHERE session_id = ? AND role = 'user'",
+                (session_id,),
+            )
+            turns_row = cursor.fetchone()
+            total_turns = turns_row["turns"] if turns_row else 0
+
+            # Query tool invocations distribution ranking
+            cursor.execute(
+                """
+                SELECT component_name, COUNT(*) as cnt 
+                FROM execution_audit_logs 
+                WHERE session_id = ? AND event_type = 'TOOL_INVOCATION' 
+                GROUP BY component_name
+                """,
+                (session_id,),
+            )
+            tool_invocations = {r["component_name"]: r["cnt"] for r in cursor.fetchall()}
+
             return {
+                "total_turns": total_turns,
                 "total_events": row["total_events"] or 0,
                 "total_latency_ms": round(row["total_latency_ms"] or 0.0, 2),
                 "avg_latency_ms": round(row["avg_latency_ms"] or 0.0, 2),
@@ -305,6 +327,7 @@ class AuditStore:
                 "completion_tokens": row["total_completion_tokens"] or 0,
                 "tools_called": row["tools_called"] or 0,
                 "guardrails_triggered": row["guardrails_triggered"] or 0,
+                "tool_invocations": tool_invocations,
             }
 
     def save_customer_session(
