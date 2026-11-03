@@ -66,38 +66,68 @@ def render_onboarding_screen(console: Console) -> Tuple[str, Optional[str], str]
 
     if engine_choice == "2":
         console.print("\n[bold white]Step 2: Choose LLM Provider[/bold white]")
-        console.print("  [1] Groq Cloud (llama-3.3-70b-versatile - Recommended)")
-        console.print("  [2] OpenAI (gpt-4o-mini)")
+        console.print("  [1] Groq Cloud (llama-3.3-70b-versatile - Ultra-Fast, Recommended)")
+        console.print("  [2] OpenAI (gpt-4o-mini / gpt-4o)")
+        console.print("  [3] Google Gemini (gemini-2.0-flash / gemini-1.5-flash)")
+        console.print("  [4] DeepSeek (deepseek-chat / deepseek-reasoner)")
+        console.print("  [5] Ollama Local (llama3.1:8b - Self-Hosted, Zero Cloud Cost)")
 
         provider_choice = Prompt.ask(
             "Select provider",
-            choices=["1", "2"],
+            choices=["1", "2", "3", "4", "5"],
             default="1",
             console=console,
         )
 
         if provider_choice == "1":
             provider = "groq"
-            default_env_key = os.environ.get("GROQ_API_KEY", "")
-            prompt_label = "Enter your GROQ_API_KEY" + (" [press Enter to use current .env]" if default_env_key else "")
+            default_env_key = AppConfig.get_api_key("groq")
+            prompt_label = "Enter your GROQ_API_KEY" + (" [press Enter to use cached/env key]" if default_env_key else "")
             entered_key = console.input(f"{prompt_label}: ", password=True).strip()
             api_key = entered_key or default_env_key
-            if api_key:
-                os.environ["GROQ_API_KEY"] = api_key
-                AppConfig.LLM_PROVIDER = "groq"
-        else:
-            provider = "openai"
-            default_env_key = os.environ.get("OPENAI_API_KEY", "")
-            prompt_label = "Enter your OPENAI_API_KEY" + (" [press Enter to use current .env]" if default_env_key else "")
-            entered_key = console.input(f"{prompt_label}: ", password=True).strip()
-            api_key = entered_key or default_env_key
-            if api_key:
-                os.environ["OPENAI_API_KEY"] = api_key
-                AppConfig.LLM_PROVIDER = "openai"
+            AppConfig.set_active_provider("groq", api_key=api_key, persist=True)
 
-        console.print("[green][OK] API Key loaded into ephemeral memory.[/green]")
+        elif provider_choice == "2":
+            provider = "openai"
+            default_env_key = AppConfig.get_api_key("openai")
+            prompt_label = "Enter your OPENAI_API_KEY" + (" [press Enter to use cached/env key]" if default_env_key else "")
+            entered_key = console.input(f"{prompt_label}: ", password=True).strip()
+            api_key = entered_key or default_env_key
+            AppConfig.set_active_provider("openai", api_key=api_key, persist=True)
+
+        elif provider_choice == "3":
+            provider = "gemini"
+            default_env_key = AppConfig.get_api_key("gemini")
+            prompt_label = "Enter your GEMINI_API_KEY" + (" [press Enter to use cached/env key]" if default_env_key else "")
+            entered_key = console.input(f"{prompt_label}: ", password=True).strip()
+            api_key = entered_key or default_env_key
+            AppConfig.set_active_provider("gemini", api_key=api_key, persist=True)
+
+        elif provider_choice == "4":
+            provider = "deepseek"
+            default_env_key = AppConfig.get_api_key("deepseek")
+            prompt_label = "Enter your DEEPSEEK_API_KEY" + (" [press Enter to use cached/env key]" if default_env_key else "")
+            entered_key = console.input(f"{prompt_label}: ", password=True).strip()
+            api_key = entered_key or default_env_key
+            AppConfig.set_active_provider("deepseek", api_key=api_key, persist=True)
+
+        elif provider_choice == "5":
+            provider = "ollama"
+            api_key = "ollama"
+            AppConfig.set_active_provider("ollama", api_key=api_key, persist=True)
+            console.print(f"[dim]Connecting to local Ollama at {AppConfig.OLLAMA_BASE_URL}...[/dim]")
+
+        if api_key and provider != "ollama":
+            console.print("[green][OK] API Key loaded and synced across CLI & Streamlit interfaces.[/green]")
+        elif provider == "ollama":
+            console.print("[green][OK] Local Ollama provider selected.[/green]")
+        else:
+            console.print("[yellow][WARN] No API key entered. Operating in Deterministic Offline mode.[/yellow]")
+            provider = "offline"
+            AppConfig.set_active_provider("offline", persist=True)
     else:
-        AppConfig.LLM_PROVIDER = "offline"
+        provider = "offline"
+        AppConfig.set_active_provider("offline", persist=True)
 
     console.print("\n[bold white]Step 3: Select Interface Target[/bold white]")
     console.print("  [1] Continue in Terminal CLI (Interactive Console)")
@@ -113,14 +143,17 @@ def render_onboarding_screen(console: Console) -> Tuple[str, Optional[str], str]
     return provider, api_key, target_choice
 
 
-def render_chat_banner(console: Console, session_id: str, provider: str) -> None:
+def render_chat_banner(console: Console, session_id: str, provider: str, is_connected: bool = False) -> None:
     """Render top header banner for the active conversational session."""
+    conn_status = "[ONLINE — NATIVE TOOL CALLING]" if is_connected else "[DETERMINISTIC OFFLINE MODE]"
+    conn_color = "bold green" if is_connected else "bold yellow"
+
     banner = Text()
     banner.append("EMPORIO DA MUSICA — CONVERSATIONAL RETAIL ASSISTANT\n", style="bold cyan")
     banner.append("Campo Grande / MS (Rua 14 de Maio, 3200) | Live Chat Console\n", style="dim white")
     banner.append(
-        f"Active Session: {session_id} | Engine: {provider.upper()} | Type /finish or /exit to view post-chat analytics",
-        style="italic green",
+        f"Active Session: {session_id} | Engine: {provider.upper()} {conn_status} | Type /finish or /exit to view post-chat analytics",
+        style=conn_color,
     )
 
     console.print(
@@ -316,23 +349,28 @@ def run_cli() -> None:
         console.print("\n[bold green]Launching Streamlit Web Application in browser...[/bold green]")
         app_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "app.py"))
         env = os.environ.copy()
+        env["LLM_PROVIDER"] = provider
         if api_key:
             if provider == "groq":
                 env["GROQ_API_KEY"] = api_key
             elif provider == "openai":
                 env["OPENAI_API_KEY"] = api_key
+            elif provider == "gemini":
+                env["GEMINI_API_KEY"] = api_key
+            elif provider == "deepseek":
+                env["DEEPSEEK_API_KEY"] = api_key
         try:
             subprocess.run([sys.executable, "-m", "streamlit", "run", app_path], env=env, check=False)
         except Exception as e:
             console.print(f"[bold red]Error launching Streamlit: {e}[/bold red]")
         return
 
-    orchestrator = ConversationalOrchestrator()
+    orchestrator = ConversationalOrchestrator(provider=provider, api_key=api_key)
     session_id = f"session-{uuid.uuid4().hex[:6]}"
     session_start_time = time.time()
 
     console.clear()
-    render_chat_banner(console, session_id, provider)
+    render_chat_banner(console, session_id, provider, orchestrator.is_llm_connected())
 
     while True:
         try:
@@ -341,13 +379,13 @@ def run_cli() -> None:
             action = render_post_conversation_dashboard(console, orchestrator, session_id, session_start_time)
             if action == "1":
                 console.clear()
-                render_chat_banner(console, session_id, provider)
+                render_chat_banner(console, session_id, provider, orchestrator.is_llm_connected())
                 continue
             elif action == "2":
                 session_id = f"session-{uuid.uuid4().hex[:6]}"
                 session_start_time = time.time()
                 console.clear()
-                render_chat_banner(console, session_id, provider)
+                render_chat_banner(console, session_id, provider, orchestrator.is_llm_connected())
                 continue
             elif action == "3":
                 render_historical_sessions_browser(console, orchestrator)
@@ -369,13 +407,13 @@ def run_cli() -> None:
                 action = render_post_conversation_dashboard(console, orchestrator, session_id, session_start_time)
                 if action == "1":
                     console.clear()
-                    render_chat_banner(console, session_id, provider)
+                    render_chat_banner(console, session_id, provider, orchestrator.is_llm_connected())
                     continue
                 elif action == "2":
                     session_id = f"session-{uuid.uuid4().hex[:6]}"
                     session_start_time = time.time()
                     console.clear()
-                    render_chat_banner(console, session_id, provider)
+                    render_chat_banner(console, session_id, provider, orchestrator.is_llm_connected())
                     continue
                 elif action == "3":
                     render_historical_sessions_browser(console, orchestrator)
@@ -386,7 +424,7 @@ def run_cli() -> None:
 
             elif cmd == "/clear":
                 console.clear()
-                render_chat_banner(console, session_id, provider)
+                render_chat_banner(console, session_id, provider, orchestrator.is_llm_connected())
                 continue
 
             elif cmd == "/session":

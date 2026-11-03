@@ -46,6 +46,10 @@ SYSTEM_PROMPT = """Você é o consultor de atendimento inteligente da Empório d
      * `authenticate_or_register_customer`: para identificar ou cadastrar o cliente pelo telefone.
      * `update_customer_profile`: para atualizar endereço e preferências musicais.
 7. **Uso Moderado de Emojis:** É permitido o uso moderado e pontual de emojis no diálogo com o cliente (no máximo 1 ou 2 por mensagem), preservando sempre a postura profissional e consultiva, sem poluição visual.
+8. **Saudações, Cumprimentos e Interações Humanizadas:**
+   - Ao receber saudações básicas (ex: 'oi', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'tudo bem?', 'como vai?'), responda exatamente como um colega músico e consultor humano faria: retribua o cumprimento de forma calorosa, simpática e educada, pergunte como a pessoa está e como você pode ajudá-la hoje no mundo dos instrumentos musicais.
+   - NUNCA responda friamente ou roboticamente a um cumprimento.
+   - NUNCA invente chamadas de ferramentas de catálogo para palavras de saudação como 'oi' ou 'olá'. Apenas responda naturalmente e se coloque à disposição para consultoria de instrumentos, promoções com 5% de desconto no PIX, parcelamento em até 12x, rastreio de pedidos ou dúvidas sobre a loja.
 """
 
 TOOLS_SCHEMA = [
@@ -297,12 +301,49 @@ class ConversationalOrchestrator:
         db_conn: Optional[sqlite3.Connection] = None,
         policy_index: Optional[PolicyVectorIndex] = None,
         audit_store: Optional[AuditStore] = None,
+        provider: Optional[str] = None,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
     ):
         self.db_conn = db_conn or init_sqlite_engine(AppConfig.DATA_DIR)
-        self.policy_index = policy_index or PolicyVectorIndex(AppConfig.POLICY_PDF_PATH)
+        self.policy_index = policy_index or PolicyVectorIndex(
+            pdf_path=AppConfig.POLICY_PDF_PATH,
+            json_path=AppConfig.STORE_POLICIES_JSON,
+        )
         self.audit_store = audit_store or AuditStore(AppConfig.DATABASE_PATH)
-        self.llm_client = get_llm_client()
+        self.provider = (provider or AppConfig.LLM_PROVIDER).lower().strip()
+        self.api_key = api_key if api_key is not None else AppConfig.get_api_key(self.provider)
+        self.model = model or AppConfig.get_model(self.provider)
+        self.llm_client = get_llm_client(self.provider, self.api_key)
         self.session_profiles: Dict[str, Dict[str, Any]] = {}
+
+    def configure_llm(
+        self,
+        provider: str,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+        persist: bool = True,
+    ) -> bool:
+        """Dynamically reconfigure or reconnect the LLM client at runtime."""
+        self.provider = provider.lower().strip()
+        if api_key is not None:
+            self.api_key = api_key.strip()
+        else:
+            self.api_key = AppConfig.get_api_key(self.provider)
+
+        AppConfig.set_active_provider(
+            provider=self.provider,
+            api_key=self.api_key,
+            model=model,
+            persist=persist,
+        )
+        self.model = model or AppConfig.get_model(self.provider)
+        self.llm_client = get_llm_client(self.provider, self.api_key)
+        return self.llm_client is not None
+
+    def is_llm_connected(self) -> bool:
+        """Check if active LLM client is connected and ready for inference."""
+        return self.llm_client is not None and self.provider != "offline"
 
     def _execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
         """Route tool invocation to deterministic backend service."""
@@ -345,10 +386,56 @@ class ConversationalOrchestrator:
     def _fallback_offline_agent(
         self, user_text: str, session_id: str
     ) -> Tuple[str, List[str], List[Dict[str, Any]], int, int]:
-        """Intelligent deterministic fallback when external LLM API is offline."""
-        lowered = user_text.lower()
+        """Intelligent deterministic fallback with humanized conversational empathy."""
+        lowered = user_text.lower().strip()
         tools_called = []
         tool_payloads = []
+        session_state = self.session_profiles.get(session_id, {})
+
+        # 0. Check Greetings & Humanized Social Interactions ("oi", "olá", "bom dia", etc.)
+        greeting_terms = [
+            r"\b(ol[aá]|oi|oie|opa|salve|fala|e\s*a[íi])\b",
+            r"\bbom\s*dia\b",
+            r"\bboa\s*tarde\b",
+            r"\bboa\s*noite\b",
+            r"\btudo\s*bem\b",
+            r"\bcomo\s*vai\b",
+        ]
+        is_greeting = any(re.search(pat, lowered) for pat in greeting_terms)
+        has_business_intent = any(
+            w in lowered
+            for w in [
+                "violão", "violao", "guitarra", "baixo", "teclado", "piano",
+                "bateria", "ukulele", "preço", "preco", "custa", "pedido",
+                "rastreio", "frete", "pagamento", "pix", "cartão", "cartao",
+                "onde fica", "endereço", "endereco", "garantia", "devolução",
+                "devolver", "marca", "yamaha", "tagima", "fender",
+                "meu nome", "telefone", "contato", "cadastr", "cpf"
+            ]
+        ) or bool(re.search(r"\b(\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4})\b", user_text))
+
+        if is_greeting and not has_business_intent:
+            salutation = "Olá! Muito bom dia!"
+            if "boa tarde" in lowered:
+                salutation = "Olá! Muito boa tarde!"
+            elif "boa noite" in lowered:
+                salutation = "Olá! Muito boa noite!"
+            elif "tudo bem" in lowered or "como vai" in lowered:
+                salutation = "Olá! Tudo ótimo por aqui, e com você?"
+
+            cust_name = session_state.get("customer_name")
+            name_suffix = f", {cust_name}" if cust_name else ""
+
+            ans = (
+                f"{salutation}{name_suffix} Seja muito bem-vindo(a) à Empório da Música! 🎵\n\n"
+                f"Sou seu consultor musical virtual. Como posso te ajudar hoje?\n\n"
+                f"Posso te ajudar a:\n"
+                f"• Explorar instrumentos do nosso catálogo (violões, guitarras, teclados, sopros e percussão);\n"
+                f"• Simular condições de pagamento (5% de desconto à vista no PIX ou em até 12x sem juros no cartão);\n"
+                f"• Consultar o status ou rastreamento de um pedido existente;\n"
+                f"• Tirar dúvidas sobre prazos de entrega, frete e garantia da loja."
+            )
+            return ans, [], [], 35, 75
         session_state = self.session_profiles.get(session_id, {})
 
         # 1. Check for Phone Number / Customer Authentication Intent
@@ -632,16 +719,8 @@ class ConversationalOrchestrator:
                     messages.append({"role": h["role"], "content": h["content"]})
                 messages.append({"role": "user", "content": sanitized_input})
 
-                model_name = (
-                    AppConfig.GROQ_MODEL
-                    if AppConfig.LLM_PROVIDER == "groq"
-                    else AppConfig.OPENAI_MODEL
-                )
-                temp = (
-                    AppConfig.GROQ_TEMPERATURE
-                    if AppConfig.LLM_PROVIDER == "groq"
-                    else AppConfig.OPENAI_TEMPERATURE
-                )
+                model_name = self.model or AppConfig.get_model(self.provider)
+                temp = 0.1
 
                 response = self.llm_client.chat.completions.create(
                     model=model_name,
@@ -665,6 +744,10 @@ class ConversationalOrchestrator:
                             t_args = json.loads(tc.function.arguments)
                         except json.JSONDecodeError:
                             t_args = {}
+
+                        # Guard against hallucinated searches on greeting terms
+                        if t_name == "lookup_catalog" and t_args.get("query", "").strip().lower() in ("oi", "olá", "ola", "bom dia", "boa tarde", "boa noite"):
+                            t_args["query"] = ""
 
                         t_start = time.perf_counter()
                         t_result = self._execute_tool(t_name, t_args)
@@ -708,7 +791,17 @@ class ConversationalOrchestrator:
                 else:
                     raw_response_text = choice.message.content or ""
 
-            except Exception:
+            except Exception as e:
+                # Log actual LLM failure for transparency and observability
+                self.audit_store.log_audit_event(
+                    session_id=session_id,
+                    event_type="ERROR",
+                    component_name=f"{self.provider}_llm_engine",
+                    input_payload={"message": sanitized_input, "model": self.model},
+                    output_payload={"error": str(e), "error_type": type(e).__name__},
+                    latency_ms=(time.perf_counter() - start_time) * 1000.0,
+                    status="FAILED",
+                )
                 # Graceful degradation to deterministic fallback
                 (
                     raw_response_text,

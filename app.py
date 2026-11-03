@@ -4,7 +4,7 @@ Streamlit-based executive interface for evaluating the Conversational AI Agent.
 
 Evaluator Interface Language: English (strictly enforced)
 Customer Conversational Workspace: Portuguese (PT-BR)
-Security: Ephemeral in-memory API key handling (never stored on disk or .env)
+Security: Ephemeral in-memory API key handling with seamless CLI cross-persistence.
 """
 
 import os
@@ -13,6 +13,7 @@ import uuid
 import pandas as pd
 import streamlit as st
 
+from src.config import AppConfig
 from src.orchestrator import ConversationalOrchestrator
 from src.storage.audit_store import AuditStore
 
@@ -29,22 +30,50 @@ st.set_page_config(
 
 
 # -----------------------------------------------------------------------------
-# Session State Initialization
+# Session State Initialization & CLI Sychronization
 # -----------------------------------------------------------------------------
+# Load persisted session configuration from CLI or environment
+cached_config = AppConfig.load_session_config()
+
+PROVIDER_MAP = {
+    "Deterministic (Offline / Default)": "offline",
+    "Groq Cloud (llama-3.3-70b-versatile)": "groq",
+    "OpenAI (gpt-4o-mini)": "openai",
+    "Google Gemini (gemini-2.0-flash)": "gemini",
+    "DeepSeek (deepseek-chat)": "deepseek",
+    "Ollama Local (llama3.1:8b)": "ollama",
+}
+REV_PROVIDER_MAP = {v: k for k, v in PROVIDER_MAP.items()}
+
+# Determine initial provider code
+initial_provider_code = (
+    cached_config.get("provider")
+    or os.getenv("LLM_PROVIDER")
+    or ("groq" if (os.getenv("GROQ_API_KEY") or cached_config.get("groq_api_key")) else "offline")
+)
+if initial_provider_code not in REV_PROVIDER_MAP:
+    initial_provider_code = "offline"
+
+initial_label = REV_PROVIDER_MAP.get(initial_provider_code, "Deterministic (Offline / Default)")
+initial_key = AppConfig.get_api_key(initial_provider_code)
+
+if "active_engine" not in st.session_state:
+    st.session_state.active_engine = initial_label
+
+if "api_key" not in st.session_state:
+    st.session_state.api_key = initial_key
+
 if "orchestrator" not in st.session_state:
-    st.session_state.orchestrator = ConversationalOrchestrator()
+    st.session_state.orchestrator = ConversationalOrchestrator(
+        provider=initial_provider_code,
+        api_key=initial_key,
+    )
 
 if "audit_store" not in st.session_state:
     st.session_state.audit_store = AuditStore()
 
 if "session_id" not in st.session_state:
     st.session_state.session_id = f"eval-{uuid.uuid4().hex[:6]}"
-
-if "active_engine" not in st.session_state:
-    st.session_state.active_engine = "Deterministic (Offline / Default)"
-
-if "api_key" not in st.session_state:
-    st.session_state.api_key = ""
 
 
 # -----------------------------------------------------------------------------
@@ -57,51 +86,104 @@ with st.sidebar:
 
     # 1. Engine & Provider Setup
     st.subheader("1. AI Engine Configuration")
+    
+    options_list = list(PROVIDER_MAP.keys())
+    default_idx = options_list.index(st.session_state.active_engine) if st.session_state.active_engine in options_list else 0
+
     engine_choice = st.selectbox(
         "Inference Engine",
-        options=[
-            "Deterministic (Offline / Default)",
-            "Groq Cloud (llama-3.3-70b-versatile)",
-            "OpenAI (gpt-4o-mini)",
-        ],
-        index=0,
+        options=options_list,
+        index=default_idx,
         help="Select between deterministic rule-based engine or live LLM provider.",
     )
-    st.session_state.active_engine = engine_choice
+    
+    current_prov_code = PROVIDER_MAP[engine_choice]
 
-    if "Groq" in engine_choice:
-        st.markdown("**Groq API Configuration**")
+    # Handle provider switch
+    if engine_choice != st.session_state.active_engine:
+        st.session_state.active_engine = engine_choice
+        st.session_state.api_key = AppConfig.get_api_key(current_prov_code)
+        st.session_state.orchestrator.configure_llm(
+            provider=current_prov_code,
+            api_key=st.session_state.api_key,
+            persist=True,
+        )
+
+    # Dynamic API Key inputs based on selected provider
+    if current_prov_code == "groq":
+        st.markdown("**Groq Cloud Configuration**")
         key_input = st.text_input(
             "Groq API Key",
             type="password",
             value=st.session_state.api_key,
             help="Your key is held strictly in memory and wiped upon session end.",
         )
-        if key_input:
+        if key_input != st.session_state.api_key:
             st.session_state.api_key = key_input
-            os.environ["GROQ_API_KEY"] = key_input
-            st.success("Groq API key activated in ephemeral memory.")
+            st.session_state.orchestrator.configure_llm(provider="groq", api_key=key_input, persist=True)
+            st.rerun()
 
-    elif "OpenAI" in engine_choice:
-        st.markdown("**OpenAI API Configuration**")
+    elif current_prov_code == "openai":
+        st.markdown("**OpenAI Configuration**")
         key_input = st.text_input(
             "OpenAI API Key",
             type="password",
             value=st.session_state.api_key,
             help="Your key is held strictly in memory and wiped upon session end.",
         )
-        if key_input:
+        if key_input != st.session_state.api_key:
             st.session_state.api_key = key_input
-            os.environ["OPENAI_API_KEY"] = key_input
-            st.success("OpenAI API key activated in ephemeral memory.")
-    else:
-        st.info("Operating in Offline Deterministic mode. No API key required.")
+            st.session_state.orchestrator.configure_llm(provider="openai", api_key=key_input, persist=True)
+            st.rerun()
 
+    elif current_prov_code == "gemini":
+        st.markdown("**Google Gemini Configuration**")
+        key_input = st.text_input(
+            "Gemini API Key",
+            type="password",
+            value=st.session_state.api_key,
+            help="Your key is held strictly in memory and wiped upon session end.",
+        )
+        if key_input != st.session_state.api_key:
+            st.session_state.api_key = key_input
+            st.session_state.orchestrator.configure_llm(provider="gemini", api_key=key_input, persist=True)
+            st.rerun()
+
+    elif current_prov_code == "deepseek":
+        st.markdown("**DeepSeek Configuration**")
+        key_input = st.text_input(
+            "DeepSeek API Key",
+            type="password",
+            value=st.session_state.api_key,
+            help="Your key is held strictly in memory and wiped upon session end.",
+        )
+        if key_input != st.session_state.api_key:
+            st.session_state.api_key = key_input
+            st.session_state.orchestrator.configure_llm(provider="deepseek", api_key=key_input, persist=True)
+            st.rerun()
+
+    elif current_prov_code == "ollama":
+        st.markdown("**Ollama Local Server**")
+        st.caption(f"Endpoint: {AppConfig.OLLAMA_BASE_URL} | Model: {AppConfig.OLLAMA_MODEL}")
+        st.session_state.orchestrator.configure_llm(provider="ollama", api_key="ollama", persist=True)
+
+    else:
+        st.info("Operating in Offline Deterministic mode. Zero LLM cost, instant latency.")
+        st.session_state.orchestrator.configure_llm(provider="offline", persist=True)
+
+    # Engine connection status pill
+    if st.session_state.orchestrator.is_llm_connected():
+        st.success(f"🟢 Connected to {current_prov_code.upper()} LLM")
+    elif current_prov_code != "offline":
+        st.warning(f"🟡 {current_prov_code.upper()} awaiting valid key")
+
+    # Wipe key action
     if st.session_state.api_key:
-        if st.button("Wipe In-Memory Key", use_container_width=True):
+        if st.button("Wipe In-Memory Key", width="stretch"):
+            AppConfig.clear_session_config()
             st.session_state.api_key = ""
-            os.environ.pop("GROQ_API_KEY", None)
-            os.environ.pop("OPENAI_API_KEY", None)
+            st.session_state.orchestrator.configure_llm(provider="offline", persist=True)
+            st.session_state.active_engine = "Deterministic (Offline / Default)"
             st.warning("API key purged from memory.")
             st.rerun()
 
@@ -116,11 +198,11 @@ with st.sidebar:
 
     col_s1, col_s2 = st.columns(2)
     with col_s1:
-        if st.button("New Session", use_container_width=True):
+        if st.button("New Session", width="stretch"):
             st.session_state.session_id = f"eval-{uuid.uuid4().hex[:6]}"
             st.rerun()
     with col_s2:
-        if st.button("Clear History", use_container_width=True):
+        if st.button("Clear History", width="stretch"):
             st.session_state.audit_store.clear_session(st.session_state.session_id)
             st.success("History cleared.")
             st.rerun()
@@ -183,7 +265,7 @@ with tab_chat:
                 st.write(content)
 
     # Chat Input Box
-    user_input = st.chat_input("Digite sua mensagem para o assistente (ex: 'Procuro um violão clássico')...")
+    user_input = st.chat_input("Digite sua mensagem para o assistente (ex: 'Oi, bom dia!' ou 'Procuro um violão clássico')...")
 
     if user_input:
         # Display user message immediately
@@ -231,7 +313,7 @@ with tab_analytics:
             {"Tool Name": tool, "Invocations": count, "Share (%)": f"{(count / sum(tool_counts.values())) * 100:.1f}%"}
             for tool, count in sorted(tool_counts.items(), key=lambda x: x[1], reverse=True)
         ]
-        st.dataframe(pd.DataFrame(tools_data), use_container_width=True)
+        st.dataframe(pd.DataFrame(tools_data), width="stretch")
     else:
         st.info("No backend tools invoked yet in this session.")
 
@@ -243,7 +325,7 @@ with tab_analytics:
     if logs:
         log_df = pd.DataFrame(logs)
         display_cols = [col for col in ["event_type", "latency_ms", "prompt_tokens", "completion_tokens", "created_at"] if col in log_df.columns]
-        st.dataframe(log_df[display_cols], use_container_width=True)
+        st.dataframe(log_df[display_cols], width="stretch")
     else:
         st.info("No audit logs recorded for this session.")
 
@@ -354,6 +436,6 @@ with tab_explorer:
         st.subheader("🔍 Raw Telemetry Events for Selected Session")
         session_logs = st.session_state.audit_store.get_session_audit_logs(inspected_session_id)
         if session_logs:
-            st.dataframe(pd.DataFrame(session_logs), use_container_width=True)
+            st.dataframe(pd.DataFrame(session_logs), width="stretch")
         else:
             st.caption("No raw telemetry events recorded for this historical session.")

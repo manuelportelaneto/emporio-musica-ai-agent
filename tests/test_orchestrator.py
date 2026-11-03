@@ -97,3 +97,23 @@ class TestOrchestrator:
         user_msg = history[0]["content"]
         assert "123.456.789-00" not in user_msg
         assert "[CPF PROTEGIDO]" in user_msg
+
+    def test_humanized_greeting_flow(self, orchestrator):
+        session = "session-test-greeting"
+        resp = orchestrator.process_turn(session, "Bom dia! Tudo bem com você?")
+
+        assert "Muito bom dia" in resp.response_text or "bem-vindo" in resp.response_text.lower()
+        assert "Empório da Música" in resp.response_text
+        assert len(resp.tools_invoked) == 0  # No catalog query triggered for greeting
+        assert "Não encontrei instrumentos" not in resp.response_text
+
+    def test_runtime_llm_reconfiguration(self, orchestrator):
+        # Configure Groq provider
+        orchestrator.configure_llm(provider="groq", api_key="gsk_dummy_test_key_123", persist=False)
+        assert orchestrator.provider == "groq"
+        assert orchestrator.api_key == "gsk_dummy_test_key_123"
+
+        # Switch to offline mode
+        orchestrator.configure_llm(provider="offline", persist=False)
+        assert orchestrator.provider == "offline"
+        assert orchestrator.llm_client is None

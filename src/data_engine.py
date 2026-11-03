@@ -7,6 +7,7 @@ and parses the store policies PDF into a vector index for semantic retrieval.
 from __future__ import annotations
 
 import csv
+import json
 import math
 import os
 import re
@@ -278,10 +279,20 @@ class PolicyChunk:
 
 
 class PolicyVectorIndex:
-    """Lightweight TF-IDF Semantic Vector Index for store policies."""
+    """Lightweight TF-IDF Semantic Vector Index for store policies.
+    
+    Prioritizes structured summarized policies (data/store_policies.json)
+    for zero noise, low token consumption, and instant retrieval, falling
+    back to the raw PDF manual when json is absent.
+    """
 
-    def __init__(self, pdf_path: str = "data/políticas_da_loja.pdf"):
+    def __init__(
+        self,
+        pdf_path: str = "data/políticas_da_loja.pdf",
+        json_path: str = "data/store_policies.json",
+    ):
         self.pdf_path = pdf_path
+        self.json_path = json_path
         self.chunks: List[PolicyChunk] = []
         self.idf: Dict[str, float] = {}
         self._build_index()
@@ -292,13 +303,87 @@ class PolicyVectorIndex:
         return tokens
 
     def _build_index(self) -> None:
+        chunk_id = 0
+        df: Dict[str, int] = {}
+
+        # 1. Prioritize Structured Summarized Policies JSON
+        if os.path.exists(self.json_path):
+            try:
+                with open(self.json_path, mode="r", encoding="utf-8") as f:
+                    data = json.load(f)
+
+                # Add store metadata as first chunk
+                store_meta = data.get("store_metadata", {})
+                if store_meta:
+                    meta_text = (
+                        f"Informações Oficiais da Loja: {store_meta.get('name')}. "
+                        f"Endereço: {store_meta.get('address')}. "
+                        f"Horário de Atendimento: {store_meta.get('hours')}. "
+                        f"Telefone: {store_meta.get('phone')} | E-mail: {store_meta.get('email')}. "
+                        f"Escopo: {store_meta.get('catalog_scope')}"
+                    )
+                    tokens = self._tokenize(meta_text)
+                    if tokens:
+                        tf: Dict[str, float] = {}
+                        for t in tokens:
+                            tf[t] = tf.get(t, 0.0) + 1.0
+                        for t in tf:
+                            tf[t] /= len(tokens)
+                        self.chunks.append(
+                            PolicyChunk(
+                                chunk_id=chunk_id,
+                                page=1,
+                                title="Informações e Contato da Loja",
+                                content=meta_text,
+                                word_freq=tf,
+                            )
+                        )
+                        chunk_id += 1
+                        for t in set(tokens):
+                            df[t] = df.get(t, 0) + 1
+
+                # Add each structured policy section
+                for idx, p in enumerate(data.get("policies", [])):
+                    title = p.get("title", f"Regra {idx+1}")
+                    summary = p.get("summary", "")
+                    content_full = f"{title}: {summary}"
+                    keywords = " ".join(p.get("keywords", []))
+                    tokens = self._tokenize(content_full + " " + keywords)
+                    if not tokens:
+                        continue
+                    tf = {}
+                    for t in tokens:
+                        tf[t] = tf.get(t, 0.0) + 1.0
+                    for t in tf:
+                        tf[t] /= len(tokens)
+
+                    self.chunks.append(
+                        PolicyChunk(
+                            chunk_id=chunk_id,
+                            page=idx + 1,
+                            title=title,
+                            content=summary,
+                            word_freq=tf,
+                        )
+                    )
+                    chunk_id += 1
+                    for t in set(tokens):
+                        df[t] = df.get(t, 0) + 1
+
+                doc_count = len(self.chunks)
+                if doc_count > 0:
+                    for term, count in df.items():
+                        self.idf[term] = math.log((doc_count + 1) / (count + 1)) + 1.0
+                return
+            except Exception:
+                pass
+
+        # 2. Fallback to Raw PDF parsing if JSON is absent
         if not os.path.exists(self.pdf_path):
             return
 
         reader = pypdf.PdfReader(self.pdf_path)
-        chunk_id = 0
         doc_count = 0
-        df: Dict[str, int] = {}
 
         for page_idx, page in enumerate(reader.pages):
             text = page.extract_text() or ""
@@ -317,7 +402,7 @@ class PolicyVectorIndex:
                 if not tokens:
                     continue
 
-                tf: Dict[str, float] = {}
+                tf = {}
                 for t in tokens:
                     tf[t] = tf.get(t, 0.0) + 1.0
 

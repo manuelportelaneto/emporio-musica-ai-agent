@@ -1,0 +1,50 @@
+{
+  "store_metadata": {
+    "name": "Empório da Música",
+    "founded_year": 2008,
+    "address": "Rua 14 de Maio, 3200 — Centro, Campo Grande / MS (CEP 79202-333)",
+    "phone": "(67) 3341-4444",
+    "email": "contato@emporiodamusica.com.br",
+    "hours": "Segunda a sexta das 08h30 às 18h30 | Sábados das 08h30 às 13h00",
+    "catalog_scope": "Especialização exclusiva em instrumentos musicais (cordas, teclas, sopros e percussão). Não comercializa acessórios como cordas avulsas, palhetas, cabos, amplificadores, capas ou pedais. Indica lojas parceiras no Centro de Campo Grande."
+  },
+  "policies": [
+    {
+      "topic": "horario_funcionamento_endereco",
+      "title": "Horário de Atendimento e Endereço Físico",
+      "summary": "Nossa loja física está localizada na Rua 14 de Maio, 3200 — Centro, em Campo Grande/MS (CEP 79202-333). Nosso horário de funcionamento presencial e suporte telefônico/WhatsApp é de segunda a sexta-feira, das 08h30 às 18h30, e aos sábados, das 08h30 às 13h00. Aos domingos e feriados a loja física permanece fechada.",
+      "keywords": ["endereço", "endereco", "onde fica", "localização", "localizacao", "horário", "horario", "atendimento", "campo grande", "rua 14 de maio", "loja física", "loja fisica"]
+    },
+    {
+      "topic": "escopo_catalogo_acessorios",
+      "title": "Escopo Exclusivo de Instrumentos e Restrição de Acessórios",
+      "summary": "A Empório da Música é especializada e comercializa com exclusividade instrumentos musicais (violões, guitarras, baixos, teclados, pianos, baterias, ukuleles, sopros e cordas orquestrais). Não vendemos peças ou acessórios avulsos (como encordoamentos, palhetas, cabos, amplificadores, pedais, suportes, afinadores ou bags). Para acessórios, indicamos aos clientes parceiros comerciais localizados na região central de Campo Grande.",
+      "keywords": ["acessórios", "acessorios", "cordas", "palheta", "cabo", "amplificador", "pedal", "case", "bag", "afinador", "correia", "suporte", "loja parceira"]
+    },
+    {
+      "topic": "formas_pagamento_pix_cartao",
+      "title": "Formas de Pagamento, Desconto PIX e Parcelamento",
+      "summary": "Oferecemos 5% de desconto à vista para pagamentos realizados via PIX sobre o preço de tabela do instrumento (desconto não-cumulativo com produtos em promoção com desconto prévio). No cartão de crédito, parcelamos em até 12x sem juros, respeitando o valor mínimo de parcela: R$ 100,00 por parcela para planos de 7 a 12 vezes; R$ 80,00 por parcela para 4 a 6 vezes; e R$ 50,00 por parcela para até 3 vezes. Também aceitamos dinheiro em espécie na loja física e boleto bancário à vista mediante compensação.",
+      "keywords": ["pagamento", "pix", "desconto", "cartão", "cartao", "crédito", "credito", "parcelamento", "parcela", "sem juros", "boleto", "dinheiro"]
+    },
+    {
+      "topic": "trocas_devolucoes_garantia",
+      "title": "Política de Trocas, Devoluções (CDC) e Garantia",
+      "summary": "Cumprimos integralmente o Código de Defesa do Consumidor (CDC Art. 49): para compras online ou não-presenciais, o cliente tem até 7 (sete) dias corridos a partir da data de entrega para manifestar arrependimento e solicitar devolução ou troca com reembolso integral. Para defeitos de fabricação, oferecemos garantia legal de 30 (trinta) dias para instrumentos novos. O instrumento deve ser devolvido em sua embalagem original, sem sinais de mau uso ou danos físicos, acompanhado de todos os manuais e nota fiscal. Itens de queima de estoque identificados como 'final sale' e instrumentos customizados sob encomenda não são elegíveis a devolução por arrependimento.",
+      "keywords": ["troca", "trocas", "devolução", "devolucao", "devolver", "arrependimento", "cdc", "7 dias", "garantia", "defeito", "prazo"]
+    },
+    {
+      "topic": "frete_prazos_entrega",
+      "title": "Política de Frete, Entrega Local e Nacional",
+      "summary": "Para a região metropolitana de Grande Campo Grande/MS, oferecemos frete grátis via motoboy próprio para compras com valor total acima de R$ 500,00 (para compras abaixo desse valor, aplica-se uma taxa fixa de entrega de R$ 35,00, com prazo de 1 a 3 dias úteis). Para envios nacionais fora de Campo Grande, despachamos via Correios (modalidades SEDEX e PAC com seguro de carga) e transportadora parceira Jadlog, com código de rastreamento gerado e enviado ao cliente assim que a mercadoria é despachada.",
+      "keywords": ["frete", "entrega", "motoboy", "campo grande", "prazo", "sedex", "pac", "correios", "jadlog", "rastreio", "rastreamento", "taxa de entrega"]
+    },
+    {
+      "topic": "cadastro_higienizacao_dados",
+      "title": "Identificação Progressiva e Higienização de Dados Pessoais",
+      "summary": "A navegação e consulta de instrumentos no catálogo é totalmente livre e anônima. Quando o cliente solicita serviços personalizados (como rastreio de pedido existente, devolução ou atualização cadastral), o consultor solicita o telefone com DDD ou CPF. O cliente é instruído a informar apenas os números inteiros, sem pontos, traços, parênteses ou espaços (ex: '67998123456' ou '12345678900'), garantindo proteção de dados, padronização e velocidade no atendimento.",
+      "keywords": ["cadastro", "identificação", "identificacao", "telefone", "cpf", "dados", "privacidade", "higienização", "higienizacao", "autenticação"]
+    }
+  ]
+}
+
