@@ -123,14 +123,16 @@ emporio-musica-ai-agent/
 │   │   ├── __init__.py
 │   │   ├── catalog_service.py    # Product & price lookups
 │   │   ├── order_service.py      # Order tracking & CDC return calculation
-│   │   └── policy_service.py     # RAG policy retrieval
+│   │   ├── policy_service.py     # RAG policy retrieval
+│   │   └── customer_service.py   # Customer auth & progressive profile service
 │   ├── storage/
 │   │   ├── __init__.py
-│   │   └── audit_store.py        # Dual-layer SQLite persistence
-│   ├── orchestrator.py           # Native tool-calling agent logic
-│   └── cli.py                    # Rich CLI interface with Telemetry HUD
+│   │   └── audit_store.py        # Dual-layer SQLite persistence & telemetry
+│   ├── orchestrator.py           # Native tool-calling agent logic & persona
+│   └── cli.py                    # 3-Stage English Evaluator CLI with HUD
+├── app.py                        # Streamlit Evaluator Console & Web Dashboard
 ├── examples/                     # Real execution scenarios & transcripts
-├── tests/                        # Comprehensive test suite (pytest)
+├── tests/                        # Comprehensive test suite (37 pytest unit tests)
 │   ├── test_services.py          # Unit tests for catalog, orders, and policies
 │   ├── test_guardrails.py        # Unit tests for input/output defense layers
 │   ├── test_audit_store.py       # Unit tests for persistence and telemetry HUD
@@ -172,10 +174,14 @@ Adhering to strict technical evaluation guidelines, progress is deployed via fre
   - Implemented `src/orchestrator.py` with native tool bindings (`lookup_catalog`, `get_order_details`, `query_store_policy`).
   - Implemented consultative selling persona with subtle Campo Grande physical store invitation guidelines.
   - Added unit tests in `tests/test_orchestrator.py` (**30/30 tests passing**).
-- [x] **Step 6: Rich Interactive CLI & Comprehensive Execution Scenarios** (`feat`)
-  - Implemented `src/cli.py` with session isolation, real-time Telemetry HUD (no emojis in UI), and slash commands (`/session`, `/history`, `/metrics`, `/clear`, `/exit`).
+- [x] **Step 6: Evaluator Layer (CLI & Web Dashboard) & Challenge Scenarios** (`feat`)
+  - Implemented 3-stage Evaluator CLI lifecycle (`src/cli.py`) with onboarding, HUD, executive dashboard, and historical sessions browser.
+  - Implemented Streamlit web interface (`app.py`) with 4 tabs: Live Chat Console, Analytics & Telemetry, Customer CRM & Alerts, and Historical Sessions Explorer.
   - Executed and recorded the 5 mandatory business scenarios into `examples/`.
-- [ ] **Step 7: Full Final Documentation & Observability Report** (`docs`)
+- [x] **Step 7: Full Final Documentation & Observability Report** (`docs`)
+  - Complete architectural documentation in `SPEC.md` and `README.md`.
+  - Comprehensive unit test suite (**37/37 passing**).
+  - Production improvements roadmap and AI engineering transparency report.
 
 ---
 
@@ -223,6 +229,14 @@ Adhering to strict technical evaluation guidelines, progress is deployed via fre
   3. [`examples/scenario_3_return_policy_cdc.md`](examples/scenario_3_return_policy_cdc.md): CDC Art. 49 7-day remorse window vs. 30-day manufacturing warranty.
   4. [`examples/scenario_4_accessory_refusal.md`](examples/scenario_4_accessory_refusal.md): Deterministic zero-LLM interception for strings, picks, cables, and guitar amps with local store redirection.
   5. [`examples/scenario_5_out_of_scope.md`](examples/scenario_5_out_of_scope.md): Prompt injection defense and non-musical scope boundary enforcement.
+
+### 6.6 Streamlit Evaluator Dashboard (`app.py`)
+To complement the terminal CLI with a visual executive observability interface, `app.py` delivers a browser-based console (`streamlit run app.py`):
+* **Sidebar Controls:** Inference engine toggle (Offline vs. Groq vs. OpenAI), ephemeral in-memory API key input with memory wipe capability, session switcher, and real-time KPI card.
+* **Tab 1 (Live Chat Console):** Conversational turns in Portuguese with full auto-scroll and telemetry HUD card attached under each assistant response.
+* **Tab 2 (Analytics & Telemetry):** Performance metrics, tool call rankings table, and audit event stream.
+* **Tab 3 (Customer CRM & Alerts):** Dynamic customer card (phone formatted as integer digits, loyalty tier, musical affinity tags) and tri-part alert console (Development, Security, Business).
+* **Tab 4 (Historical Sessions Explorer):** Interactive dropdown selector to replay any session recorded in SQLite (`conversation_history` and `execution_audit_logs`).
 
 ---
 
