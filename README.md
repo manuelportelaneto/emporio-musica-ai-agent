@@ -209,8 +209,14 @@ Adhering to strict technical evaluation guidelines, progress is deployed via fre
 * **Consultative Persona:** Musically knowledgeable, friendly, and respectful ("fellow musician" persona). Natural invitations to visit the Campo Grande store (Rua 14 de Maio, 3200) strictly when contextually appropriate (e.g. testing acoustic resonance or asking for store address).
 * **Intelligent Dual-Execution Architecture:** If live LLM credentials are provided, runs native function calling with two-pass tool response synthesis. If running offline/test mode, falls back to deterministic intent routing while exercising the exact same backend tools and guardrails.
 
-### 6.5 Interactive CLI & Mandatory Business Scenarios (Step 6)
-* **Rich Terminal Console (`src/cli.py`):** Executive CLI with live session switching (`/session <id>`), audit replay (`/history`), session metrics aggregation (`/metrics`), and real-time Telemetry HUD.
+### 6.5 Evaluator Experience & Interactive Console (Step 6)
+* **3-Stage Evaluator Lifecycle (`src/cli.py`):**
+  1. **Screen 1 (Onboarding & Engine Setup):** Allows the evaluator to select between Offline Deterministic Engine or Online LLM (Groq / OpenAI) with ephemeral in-memory API key handling (never stored on disk or in `.env`), followed by launching in CLI or preparing for the Streamlit Web App.
+  2. **Screen 2 (Active Conversational Workspace):** Evaluator interacts with the assistant in Portuguese (PT-BR) while all system telemetry, HUD cards, and navigation are displayed strictly in English. Real-time Telemetry HUD reports response time (ms), token usage, tool invocations, and guardrail validations.
+  3. **Screen 3 (Executive Post-Conversation Analytics & Session Browser):** Triggered when the evaluator inputs `/exit`, `/finish`, or `/quit`. Presents comprehensive session metrics, tool invocation rankings, customer intelligence profile, 3-tier system alerts (Development, Security, Business), and an interactive **Historical Sessions Explorer** (`list_all_sessions`, `get_full_session_transcript`) to inspect past runs across the system.
+* **Bilingual Interface Segregation Rule:**
+  - Evaluator Interface (onboarding, prompts, dashboard, metrics, tables, menus): strictly in **English**.
+  - Customer Dialogue (conversation window): strictly in **Portuguese (PT-BR)** reflecting the Brazilian musical retail reality in Campo Grande/MS.
 * **5 Mandatory Challenge Scenarios (`examples/`):**
   1. [`examples/scenario_1_catalog_search.md`](examples/scenario_1_catalog_search.md): Beginner guitar inquiry (Yamaha C40), 5% PIX discount, and interest-free installment schedule.
   2. [`examples/scenario_2_order_tracking.md`](examples/scenario_2_order_tracking.md): Order status check (#1), courier delivery confirmation, and tracking code.
@@ -232,7 +238,7 @@ source .venv/bin/activate
 pytest tests/ -v
 ```
 
-### Test Results Summary (36 Passed)
+### Test Results Summary (37 Passed)
 | Test Suite | Scope | Status |
 | :--- | :--- | :--- |
 | `TestCatalogService` | SQLite tables population, query matching, 5% PIX discount, non-cumulative promotions, installment tiers (12x/6x/3x) | ✅ Passed |
@@ -241,7 +247,7 @@ pytest tests/ -v
 | `TestCustomerService` | Phone normalization, progressive authentication with recent orders, dynamic customer registration, and profile updates | ✅ Passed |
 | `TestInputGuardrails` | Brazilian CPF masking, Credit Card masking, accessory interception, instrument spec exception handling, prompt injection defense | ✅ Passed |
 | `TestOutputGuardrails` | Currency extraction, factual grounding verification against tool payload, hallucination detection, commercial tone modulation | ✅ Passed |
-| `TestAuditStore` | Conversation history persistence, audit telemetry logging, session metrics aggregation, customer session CRM upsert, Observability HUD formatting | ✅ Passed |
+| `TestAuditStore` | Conversation history persistence, audit telemetry logging, session metrics aggregation, customer session CRM upsert, Observability HUD formatting, session list query, and full transcript retrieval | ✅ Passed |
 | `TestOrchestrator` | Complete conversational turns, tool routing, accessory bypass, order tracking, store policy retrieval, customer authentication flow, and PII redaction | ✅ Passed |
 
 ---
@@ -251,7 +257,7 @@ pytest tests/ -v
 ### Prerequisites
 * Python 3.10+
 * Git
-* Groq API Key (recommended for ultra-low latency) or OpenAI API Key
+* Groq API Key (recommended for ultra-low latency) or OpenAI API Key (optional: offline deterministic engine included)
 
 ### Setup
 ```bash
@@ -266,12 +272,14 @@ source .venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure environment
+# Configure environment (optional, evaluator onboarding will prompt interactively)
 cp .env.example .env
-# Edit .env with your LLM API keys (optional: works offline/fallback automatically)
 
-# Run interactive Rich CLI console
+# Run interactive Evaluator CLI console
 python src/cli.py
+
+# Run Streamlit Web Application
+streamlit run app.py
 
 # Generate/Export all 5 challenge scenario transcripts into examples/
 python scripts/generate_scenarios.py

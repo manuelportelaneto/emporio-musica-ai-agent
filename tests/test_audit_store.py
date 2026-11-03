@@ -122,3 +122,21 @@ class TestAuditStore:
         assert sess["sentiment_score"] == "Positivo"
         assert "violão" in sess["affinity_tags"]
         assert len(sess["alerts_detected"]) == 1
+
+    def test_list_all_sessions_and_full_transcript(self, temp_audit_store):
+        temp_audit_store.save_message("session-alpha", "user", "Olá!")
+        temp_audit_store.save_message("session-alpha", "assistant", "Olá! Como posso ajudar?")
+        temp_audit_store.save_message("session-beta", "user", "Qual o valor do violão?")
+
+        all_sess = temp_audit_store.list_all_sessions()
+        assert len(all_sess) >= 2
+        alpha_info = next((s for s in all_sess if s["session_id"] == "session-alpha"), None)
+        assert alpha_info is not None
+        assert alpha_info["turn_count"] == 2
+
+        transcript = temp_audit_store.get_full_session_transcript("session-alpha")
+        assert len(transcript) == 2
+        assert transcript[0]["role"] == "user"
+        assert transcript[0]["content"] == "Olá!"
+        assert transcript[1]["role"] == "assistant"
+

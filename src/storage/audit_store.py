@@ -135,6 +135,41 @@ class AuditStore:
             rows = cursor.fetchall()
             return [{"role": r["role"], "content": r["content"]} for r in rows]
 
+    def list_all_sessions(self) -> List[Dict[str, Any]]:
+        """List all distinct historical sessions with turn counts and timestamps."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT 
+                    session_id, 
+                    COUNT(*) as turn_count, 
+                    MIN(created_at) as started_at, 
+                    MAX(created_at) as last_activity
+                FROM conversation_history
+                GROUP BY session_id
+                ORDER BY last_activity DESC
+                """
+            )
+            rows = cursor.fetchall()
+            return [dict(r) for r in rows]
+
+    def get_full_session_transcript(self, session_id: str) -> List[Dict[str, Any]]:
+        """Retrieve all chronological turns for a given session with metadata."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT role, content, created_at 
+                FROM conversation_history 
+                WHERE session_id = ? 
+                ORDER BY id ASC
+                """,
+                (session_id,),
+            )
+            rows = cursor.fetchall()
+            return [dict(r) for r in rows]
+
     def log_audit_event(
         self,
         session_id: str,
