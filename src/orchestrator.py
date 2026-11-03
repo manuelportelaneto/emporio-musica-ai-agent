@@ -807,7 +807,7 @@ class ConversationalOrchestrator:
         # ---------------------------------------------------------
         sanitized_input = input_guard.sanitized_text
         self.audit_store.save_message(session_id, "user", sanitized_input)
-        history = self.audit_store.get_conversation_history(session_id, limit=8)
+        history = self.audit_store.get_conversation_history(session_id, limit=20)
 
         tools_invoked: List[str] = []
         tool_payloads: List[Dict[str, Any]] = []

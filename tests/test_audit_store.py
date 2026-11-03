@@ -35,6 +35,20 @@ class TestAuditStore:
         assert history[1]["role"] == "assistant"
         assert "599,90" in history[1]["content"]
 
+    def test_conversation_history_sliding_window_limit(self, temp_audit_store):
+        session = "test-session-window"
+        for i in range(10):
+            temp_audit_store.save_message(session, "user", f"user-{i}")
+            temp_audit_store.save_message(session, "assistant", f"bot-{i}")
+
+        # Total 20 messages. Limit 4 should return the last 4 in chronological order: user-8, bot-8, user-9, bot-9
+        recent = temp_audit_store.get_conversation_history(session, limit=4)
+        assert len(recent) == 4
+        assert recent[0]["content"] == "user-8"
+        assert recent[1]["content"] == "bot-8"
+        assert recent[2]["content"] == "user-9"
+        assert recent[3]["content"] == "bot-9"
+
     def test_audit_event_logging(self, temp_audit_store):
         session = "test-session-audit"
         event_id = temp_audit_store.log_audit_event(

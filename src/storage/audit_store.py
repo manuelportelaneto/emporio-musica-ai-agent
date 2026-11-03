@@ -112,11 +112,11 @@ class AuditStore:
     def get_conversation_history(
         self, session_id: str, limit: int = 20
     ) -> List[Dict[str, Any]]:
-        """Retrieve historical message turns for sliding-window context.
+        """Retrieve recent historical message turns for sliding-window context.
 
         Args:
             session_id: Session identifier.
-            limit: Maximum turns to fetch.
+            limit: Maximum most recent turns to fetch.
 
         Returns:
             List of message dictionaries in chronological order.
@@ -126,9 +126,13 @@ class AuditStore:
             cursor.execute(
                 """
                 SELECT role, content, created_at 
-                FROM conversation_history 
-                WHERE session_id = ? 
-                ORDER BY id ASC LIMIT ?
+                FROM (
+                    SELECT id, role, content, created_at 
+                    FROM conversation_history 
+                    WHERE session_id = ? 
+                    ORDER BY id DESC LIMIT ?
+                ) 
+                ORDER BY id ASC
                 """,
                 (session_id, limit),
             )
