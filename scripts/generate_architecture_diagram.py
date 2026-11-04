@@ -1,0 +1,547 @@
+"""Script to generate a high-resolution architectural diagram image using Chromium headless."""
+
+import os
+import subprocess
+import shutil
+
+HTML_CONTENT = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  body {
+    background: #090d16;
+    color: #e6edf3;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    position: relative;
+    padding: 30px 40px;
+  }
+  
+  /* Subtle Background Grid */
+  body::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: 
+      linear-gradient(rgba(56, 139, 253, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 139, 253, 0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #21262d;
+    padding-bottom: 20px;
+    margin-bottom: 25px;
+    position: relative;
+    z-index: 10;
+  }
+  .title-area h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: #58a6ff;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .title-area p {
+    font-size: 14px;
+    color: #8b949e;
+    margin-top: 4px;
+    font-weight: 400;
+  }
+  .badge-container {
+    display: flex;
+    gap: 8px;
+  }
+  .badge {
+    background: #161b22;
+    border: 1px solid #30363d;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #c9d1d9;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .badge.green { border-color: #238636; color: #3fb950; background: rgba(35, 134, 54, 0.15); }
+  .badge.blue { border-color: #1f6feb; color: #58a6ff; background: rgba(31, 111, 235, 0.15); }
+  .badge.purple { border-color: #8957e5; color: #bc8cff; background: rgba(137, 87, 229, 0.15); }
+
+  /* Main Grid */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 370px 370px 480px 530px;
+    gap: 20px;
+    height: 640px;
+    position: relative;
+    z-index: 10;
+  }
+
+  .card {
+    background: rgba(13, 17, 23, 0.95);
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    backdrop-filter: blur(8px);
+    position: relative;
+  }
+  .card.highlight {
+    border-color: #388bfd;
+    box-shadow: 0 0 20px rgba(56, 139, 253, 0.15);
+  }
+  .card.defense {
+    border-color: #d29922;
+    box-shadow: 0 0 20px rgba(210, 153, 34, 0.15);
+  }
+  .card.services {
+    border-color: #a371f7;
+    box-shadow: 0 0 20px rgba(163, 113, 247, 0.15);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    border-bottom: 1px solid #21262d;
+    padding-bottom: 10px;
+  }
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title.blue { color: #58a6ff; }
+  .card-title.gold { color: #e3b341; }
+  .card-title.purple { color: #bc8cff; }
+  .card-title.green { color: #3fb950; }
+
+  .sub-box {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  .sub-box.active {
+    border-color: #388bfd;
+    background: rgba(56, 139, 253, 0.08);
+  }
+  .sub-box-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f0f6fc;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #30363d;
+    color: #8b949e;
+  }
+  .tag.green { background: #238636; color: #fff; }
+  .tag.blue { background: #1f6feb; color: #fff; }
+  .tag.orange { background: #9e6a03; color: #fff; }
+
+  .item-list {
+    list-style: none;
+    font-size: 12px;
+    color: #8b949e;
+    line-height: 1.5;
+  }
+  .item-list li {
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .item-list li::before {
+    content: "•";
+    color: #58a6ff;
+    font-weight: bold;
+  }
+  .item-list.gold li::before { color: #d29922; }
+  .item-list.purple li::before { color: #bc8cff; }
+  .item-list.green li::before { color: #3fb950; }
+
+  /* HUD Box */
+  .hud-box {
+    background: #0d1117;
+    border: 1px dashed #30363d;
+    border-radius: 6px;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 11px;
+    color: #7ee787;
+    margin-top: auto;
+  }
+  .hud-box span.hud-label { color: #8b949e; }
+
+  /* Bottom Storage Row */
+  .bottom-grid {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.3fr;
+    gap: 20px;
+    height: 250px;
+    position: relative;
+    z-index: 10;
+  }
+  .storage-card {
+    background: rgba(13, 17, 23, 0.95);
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+  }
+  .storage-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #3fb950;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #21262d;
+    padding-bottom: 8px;
+  }
+  .table-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .table-pill {
+    background: #161b22;
+    border: 1px solid #30363d;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: monospace;
+    color: #58a6ff;
+  }
+  .table-pill.orange { color: #e3b341; border-color: #876208; }
+  .table-pill.green { color: #3fb950; border-color: #238636; }
+</style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="title-area">
+      <h1>EMPÓRIO DA MÚSICA — CONVERSATIONAL AI AGENT & TELEMETRY ENGINE</h1>
+      <p>Spec-Driven Development (SDD) • Multi-Layer Defense in Depth • Deterministic Function Calling • Dual-Engine Observability</p>
+    </div>
+    <div class="badge-container">
+      <div class="badge blue">Python 3.10 - 3.12</div>
+      <div class="badge green">45 Passed Tests</div>
+      <div class="badge purple">Multi-Provider LLM</div>
+      <div class="badge">Linux | macOS | Windows</div>
+    </div>
+  </div>
+
+  <!-- Main 4-Column Grid -->
+  <div class="main-grid">
+
+    <!-- Column 1: Client & Evaluator Layer -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title blue">1. Client & Evaluator</span>
+        <span class="tag blue">Multi-Platform</span>
+      </div>
+
+      <div class="sub-box active">
+        <div class="sub-box-title">
+          <span>Terminal CLI Console</span>
+          <span class="tag">main.py / run.sh / run.bat</span>
+        </div>
+        <ul class="item-list">
+          <li>Screen 1: Welcome & Provider Setup</li>
+          <li>Screen 2: Interactive Rich Chat</li>
+          <li>Screen 3: Post-Chat Executive Dashboard</li>
+          <li>Historical Session Explorer & Replay</li>
+        </ul>
+      </div>
+
+      <div class="sub-box">
+        <div class="sub-box-title">
+          <span>Streamlit Web Console</span>
+          <span class="tag">app.py</span>
+        </div>
+        <ul class="item-list">
+          <li>Tab 1: Live Chat & Real-time HUD</li>
+          <li>Tab 2: Analytics, Latency & Tool Rank</li>
+          <li>Tab 3: Customer CRM & Seed Sandbox</li>
+          <li>Tab 4: Historical Sessions Inspector</li>
+        </ul>
+      </div>
+
+      <div class="hud-box">
+        <span class="hud-label">[TELEMETRY HUD]</span><br>
+        [LATENCY] 14ms | [TOKENS] 184 (P:128/C:56)<br>
+        [TOOL] lookup_catalog(query="Yamaha")<br>
+        [GUARDRAIL] Passed | Factual: 100%
+      </div>
+    </div>
+
+    <!-- Column 2: Multi-Layer Guardrails -->
+    <div class="card defense">
+      <div class="card-header">
+        <span class="card-title gold">2. Multi-Layer Defense</span>
+        <span class="tag orange">Deterministic</span>
+      </div>
+
+      <div class="sub-box">
+        <div class="sub-box-title">
+          <span>Layer 1: Input Guardrails</span>
+          <span class="tag orange">input_guards.py</span>
+        </div>
+        <ul class="item-list gold">
+          <li>Accessory Interceptor (Zero-LLM Cost)</li>
+          <li>PII Sanitization (CPF & Cartão Masking)</li>
+          <li>Preserve Brazilian Phones (10/11 digits)</li>
+          <li>Prompt Injection Defense (Regex Multi-Lingual)</li>
+          <li>Out-of-Scope Product Interceptor</li>
+        </ul>
+      </div>
+
+      <div class="sub-box">
+        <div class="sub-box-title">
+          <span>Layer 2: Execution Defense</span>
+          <span class="tag">SQLite Boundary</span>
+        </div>
+        <ul class="item-list gold">
+          <li>Strict Top-3 Catalog Query Limit</li>
+          <li>Parameterized SQL (No String Injection)</li>
+          <li>Type-Checked Tool Payloads</li>
+        </ul>
+      </div>
+
+      <div class="sub-box">
+        <div class="sub-box-title">
+          <span>Layer 3: Output Guardrails</span>
+          <span class="tag orange">output_guards.py</span>
+        </div>
+        <ul class="item-list gold">
+          <li>Factual Grounding Price Cross-Check</li>
+          <li>Hallucination Detection & Audit Flagging</li>
+          <li>Musician Consultative Tone Modulation</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Column 3: Orchestrator & LLM Core -->
+    <div class="card highlight">
+      <div class="card-header">
+        <span class="card-title blue">3. Cognitive Core</span>
+        <span class="tag blue">Orchestrator</span>
+      </div>
+
+      <div class="sub-box active">
+        <div class="sub-box-title">
+          <span>Conversational Orchestrator</span>
+          <span class="tag blue">orchestrator.py</span>
+        </div>
+        <ul class="item-list">
+          <li>Native Function Calling (`bind_tools`)</li>
+          <li>Sliding-Window Dialogue Turn History</li>
+          <li>Session State & Order Context (#id memory)</li>
+          <li>Customer Affinity & Sentiment Profiler</li>
+        </ul>
+      </div>
+
+      <div class="sub-box">
+        <div class="sub-box-title">
+          <span>Multi-Provider LLM Gateway</span>
+          <span class="tag">config.py</span>
+        </div>
+        <ul class="item-list">
+          <li><strong>Groq Cloud:</strong> Llama 3.3 70B / GPT-OSS 120B</li>
+          <li><strong>OpenAI:</strong> GPT-4o Mini / GPT-4o</li>
+          <li><strong>Anthropic Claude:</strong> Claude 3.5 Sonnet</li>
+          <li><strong>Google Gemini:</strong> Gemini 2.0 Flash</li>
+          <li><strong>DeepSeek:</strong> DeepSeek V3 Chat</li>
+          <li><strong>Local Ollama:</strong> Llama 3.1 8B</li>
+          <li><strong>Deterministic Offline Fallback:</strong> &lt;20ms latency</li>
+        </ul>
+      </div>
+
+      <div class="sub-box" style="margin-bottom:0;">
+        <div class="sub-box-title">
+          <span>Ephemeral Security</span>
+          <span class="tag green">In-Memory</span>
+        </div>
+        <ul class="item-list">
+          <li>Masked runtime credentials via .evaluator_session.json</li>
+          <li>Immediate memory wipe on session exit</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Column 4: Deterministic Backend Services -->
+    <div class="card services">
+      <div class="card-header">
+        <span class="card-title purple">4. Deterministic Services</span>
+        <span class="tag" style="background:#8957e5; color:#fff;">Typed Python</span>
+      </div>
+
+      <div class="sub-box">
+        <div class="sub-box-title">
+          <span>Catalog Service</span>
+          <span class="tag">catalog_service.py</span>
+        </div>
+        <ul class="item-list purple">
+          <li>lookup_catalog (query, category, price)</li>
+          <li>5% PIX discount (non-cumulative with promo)</li>
+          <li>Installment Tier Calculation (up to 12x no interest)</li>
+        </ul>
+      </div>
+
+      <div class="sub-box">
+        <div class="sub-box-title">
+          <span>Order Lifecycle Service</span>
+          <span class="tag">order_service.py</span>
+        </div>
+        <ul class="item-list purple">
+          <li>get_order_details (by ID or customer)</li>
+          <li>Tracking code & status resolution</li>
+          <li>CDC Art. 49 7-day statutory remorse check</li>
+          <li>30-day manufacturing warranty routing</li>
+        </ul>
+      </div>
+
+      <div class="sub-box">
+        <div class="sub-box-title">
+          <span>Policy RAG & Auth Services</span>
+          <span class="tag">policy_service.py</span>
+        </div>
+        <ul class="item-list purple">
+          <li>query_store_policy (TF-IDF vector search)</li>
+          <li>Store address (Rua 14 de Maio, 3200) & hours</li>
+          <li>Greater Campo Grande motoboy freight rules</li>
+          <li>authenticate_or_register_customer (phone ID)</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Row: Dual Persistence & Storage -->
+  <div class="bottom-grid">
+
+    <!-- In-Memory Relational Engine -->
+    <div class="storage-card">
+      <div class="storage-title">
+        <span>Operational In-Memory Relational Engine</span>
+        <span class="tag green">:memory: SQLite</span>
+      </div>
+      <p style="font-size: 12px; color: #8b949e; margin-bottom: 8px;">
+        High-throughput relational tables loaded on startup. Provides microsecond joins without disk I/O.
+      </p>
+      <div class="table-pills">
+        <div class="table-pill green">categories (PK: id)</div>
+        <div class="table-pill green">products (PK: id, FK: cat_id)</div>
+        <div class="table-pill green">customers (PK: id, phone)</div>
+        <div class="table-pill green">orders (PK: id, FK: cust_id)</div>
+        <div class="table-pill green">order_items (FK: ord, prod)</div>
+        <div class="table-pill green">promotions (FK: prod_id)</div>
+      </div>
+    </div>
+
+    <!-- Data Sources & Policies -->
+    <div class="storage-card">
+      <div class="storage-title" style="color: #e3b341;">
+        <span>Single Source of Truth & Data Files</span>
+        <span class="tag orange">data/</span>
+      </div>
+      <p style="font-size: 12px; color: #8b949e; margin-bottom: 8px;">
+        Normalized raw data and operational business rules manual.
+      </p>
+      <div class="table-pills">
+        <div class="table-pill orange">categories.csv</div>
+        <div class="table-pill orange">products.csv</div>
+        <div class="table-pill orange">customers.csv</div>
+        <div class="table-pill orange">orders.csv</div>
+        <div class="table-pill orange">order_items.csv</div>
+        <div class="table-pill orange">promotions.csv</div>
+        <div class="table-pill orange">store_policies.json (Structured Truth)</div>
+        <div class="table-pill orange">políticas_da_loja.pdf (Manual)</div>
+      </div>
+    </div>
+
+    <!-- Persistent Audit & Telemetry Store -->
+    <div class="storage-card">
+      <div class="storage-title" style="color: #58a6ff;">
+        <span>Telemetry & Session Persistence Store</span>
+        <span class="tag blue">emporio_records.db</span>
+      </div>
+      <p style="font-size: 12px; color: #8b949e; margin-bottom: 8px;">
+        Persistent SQLite database storing audit trails, conversational turns, and executive metrics.
+      </p>
+      <div class="table-pills">
+        <div class="table-pill">conversation_history (session_id, role, content, timestamp)</div>
+        <div class="table-pill">execution_audit_logs (event_type, latency_ms, tokens, status)</div>
+        <div class="table-pill">customer_sessions (phone, affinity_tags, sentiment, alerts)</div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>
+"""
+
+def main():
+    os.makedirs("docs", exist_ok=True)
+    html_path = os.path.abspath("docs/architecture_diagram.html")
+    png_path = os.path.abspath("docs/architecture_diagram.png")
+    
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(HTML_CONTENT)
+    print(f"[OK] Saved HTML template: {html_path}")
+
+    # Use chromium to render pixel-perfect PNG
+    cmd = [
+        "chromium",
+        "--headless",
+        "--disable-gpu",
+        "--window-size=1920,1080",
+        f"--screenshot={png_path}",
+        html_path
+    ]
+    subprocess.run(cmd, check=True)
+    print(f"[OK] Rendered high-res PNG diagram: {png_path}")
+
+    # Copy to artifacts directory so user can preview directly
+    artifact_dir = "/home/ubuntu/.gemini/antigravity/brain/85139727-ef3c-4c32-b430-85400e5d42ee"
+    dest_png = os.path.join(artifact_dir, "architecture_diagram.png")
+    shutil.copy2(png_path, dest_png)
+    print(f"[OK] Copied to artifact directory for instant preview: {dest_png}")
+
+if __name__ == "__main__":
+    main()
+

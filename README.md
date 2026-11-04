@@ -12,6 +12,12 @@ Developed as part of the **Artefact Technical Case for AI Engineer – Full-Stac
 
 ---
 
+<p align="center">
+  <img src="docs/architecture_diagram.png" alt="Empório da Música — Full-Stack Architecture Blueprint" width="100%">
+</p>
+
+---
+
 ## 1. System Architecture
 
 The project is built on **Spec-Driven Development (SDD)** with an **Architecture-First** methodology, decoupling user-facing conversations from deterministic business logic, strict security guardrails, and telemetry auditing.
