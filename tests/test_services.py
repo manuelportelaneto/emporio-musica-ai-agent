@@ -189,9 +189,11 @@ class TestCustomerService:
         res = update_customer_profile(
             conn=db_conn,
             phone=phone,
+            name="Marina Silva Santos",
             address="Rua dos Ipês, 150 - Campo Grande/MS",
             musical_interests=["violão", "yamaha", "iniciante"],
         )
         assert res["status"] == "updated"
+        assert res["name"] == "Marina Silva Santos"
         assert res["address"] == "Rua dos Ipês, 150 - Campo Grande/MS"
         assert "violão" in res["updated_interests"]

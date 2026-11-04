@@ -69,6 +69,8 @@ class AuditStore:
                     customer_id INTEGER,
                     phone TEXT,
                     customer_name TEXT,
+                    address TEXT,
+                    cart_items TEXT,
                     affinity_tags TEXT,
                     sentiment_score TEXT,
                     interaction_category TEXT,
@@ -79,6 +81,15 @@ class AuditStore:
                 );
                 """
             )
+            # Add columns if migrating existing table
+            try:
+                cursor.execute("ALTER TABLE customer_sessions ADD COLUMN address TEXT;")
+            except Exception:
+                pass
+            try:
+                cursor.execute("ALTER TABLE customer_sessions ADD COLUMN cart_items TEXT;")
+            except Exception:
+                pass
 
             # Helpful indices for fast querying
             cursor.execute(
@@ -345,15 +356,18 @@ class AuditStore:
         customer_id: Optional[int] = None,
         phone: Optional[str] = None,
         customer_name: Optional[str] = None,
+        address: Optional[str] = None,
+        cart_items: Optional[List[Dict[str, Any]]] = None,
         affinity_tags: Optional[List[str]] = None,
         sentiment_score: str = "Neutro",
         interaction_category: str = "Consulta Catálogo",
         alerts_detected: Optional[List[Dict[str, Any]]] = None,
         total_duration_sec: int = 0,
     ) -> None:
-        """Upsert customer session analytics and CRM profile."""
+        """Upsert customer session analytics and CRM profile with address and active cart."""
         tags_json = json.dumps(affinity_tags or [], ensure_ascii=False)
         alerts_json = json.dumps(alerts_detected or [], ensure_ascii=False)
+        cart_json = json.dumps(cart_items or [], ensure_ascii=False)
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -361,13 +375,15 @@ class AuditStore:
                 """
                 INSERT INTO customer_sessions (
                     session_id, customer_id, phone, customer_name,
-                    affinity_tags, sentiment_score, interaction_category,
+                    address, cart_items, affinity_tags, sentiment_score, interaction_category,
                     alerts_detected, total_duration_sec, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(session_id) DO UPDATE SET
                     customer_id = COALESCE(excluded.customer_id, customer_sessions.customer_id),
                     phone = COALESCE(excluded.phone, customer_sessions.phone),
                     customer_name = COALESCE(excluded.customer_name, customer_sessions.customer_name),
+                    address = COALESCE(excluded.address, customer_sessions.address),
+                    cart_items = excluded.cart_items,
                     affinity_tags = excluded.affinity_tags,
                     sentiment_score = excluded.sentiment_score,
                     interaction_category = excluded.interaction_category,
@@ -380,6 +396,8 @@ class AuditStore:
                     customer_id,
                     phone,
                     customer_name,
+                    address,
+                    cart_json,
                     tags_json,
                     sentiment_score,
                     interaction_category,
@@ -406,6 +424,10 @@ class AuditStore:
                 res["alerts_detected"] = json.loads(res.get("alerts_detected") or "[]")
             except Exception:
                 res["alerts_detected"] = []
+            try:
+                res["cart_items"] = json.loads(res.get("cart_items") or "[]")
+            except Exception:
+                res["cart_items"] = []
             return res
 
     @staticmethod

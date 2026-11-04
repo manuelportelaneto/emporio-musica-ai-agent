@@ -123,6 +123,8 @@ class TestAuditStore:
             customer_id=1,
             phone="67998123456",
             customer_name="Lucas Mendes",
+            address="Rua 14 de Maio, 3200",
+            cart_items=[{"name": "Yamaha C40", "pix_price": 569.91}],
             affinity_tags=["violão", "yamaha"],
             sentiment_score="Positivo",
             interaction_category="Consulta Catálogo",
@@ -133,6 +135,9 @@ class TestAuditStore:
         sess = temp_audit_store.get_customer_session(session)
         assert sess is not None
         assert sess["customer_name"] == "Lucas Mendes"
+        assert sess["address"] == "Rua 14 de Maio, 3200"
+        assert len(sess["cart_items"]) == 1
+        assert sess["cart_items"][0]["name"] == "Yamaha C40"
         assert sess["sentiment_score"] == "Positivo"
         assert "violão" in sess["affinity_tags"]
         assert len(sess["alerts_detected"]) == 1

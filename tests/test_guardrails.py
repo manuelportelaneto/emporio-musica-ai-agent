@@ -154,3 +154,12 @@ class TestOutputGuardrails:
         assert "♫" not in sanitized
         assert "♬" not in sanitized
         assert "Olá! No momento não temos sanfona" in sanitized
+
+    def test_formatting_asterisks_sanitization(self):
+        raw_text = "**Pedido confirmado!**\n* **Instrumento:** Fender Stratocaster\n* Preço: R$ 12.500,00\n***"
+        sanitized, changed = check_tone_and_persona(raw_text)
+        assert changed is True
+        assert "*" not in sanitized
+        assert "Pedido confirmado!" in sanitized
+        assert "• Instrumento: Fender Stratocaster" in sanitized
+        assert "• Preço: R$ 12.500,00" in sanitized

@@ -25,3 +25,4 @@ def reset_records_database(db_path: str = "emporio_records.db") -> None:
 
 if __name__ == "__main__":
     reset_records_database()
+

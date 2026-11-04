@@ -60,7 +60,8 @@ def authenticate_or_register_customer(
         customer_id = matched_row["customer_id"]
 
         # If a specific name is provided that differs from file, update it so customer identity stays accurate
-        if name and name.strip() and name.strip().lower() != (matched_row["name"] or "").strip().lower():
+        is_generic = name and name.strip().lower() in ("cliente", "cliente empório", "cliente emporio", "unidentified")
+        if name and not is_generic and name.strip().lower() != (matched_row["name"] or "").strip().lower():
             cursor.execute(
                 "UPDATE customers SET name = ? WHERE customer_id = ?",
                 (name.strip(), customer_id),
@@ -90,28 +91,34 @@ def authenticate_or_register_customer(
             except Exception:
                 interests = [matched_row["musical_interests"]]
 
+        curr_address = matched_row["address"] if ("address" in matched_row.keys() and matched_row["address"]) else None
+        cust_full_name = matched_row["name"] or ""
+
         return {
             "status": "authenticated",
             "is_new": False,
             "customer_id": customer_id,
-            "name": matched_row["name"],
+            "name": cust_full_name,
             "phone": matched_row["phone"],
             "city": matched_row["city"] or "Campo Grande",
-            "address": matched_row["address"] if "address" in matched_row.keys() else None,
+            "address": curr_address,
             "birth_date": matched_row["birth_date"] if "birth_date" in matched_row.keys() else birth_date,
             "musical_interests": interests,
             "recent_orders": orders,
-            "message": f"Bem-vindo(a) de volta, {matched_row['name']}! Sua conta foi autenticada com sucesso.",
+            "needs_address": curr_address is None,
+            "needs_surname": len(cust_full_name.strip().split()) <= 1,
+            "message": f"Bem-vindo(a) de volta, {cust_full_name}! Sua conta foi localizada. Por favor, confirme se o seu nome completo, telefone, endereço de entrega e itens do carrinho estão atualizados.",
         }
 
     # If customer does not exist, create new account dynamically
+    full_name_clean = name.strip() if name else "Cliente Empório"
     cursor.execute(
         """
         INSERT INTO customers (name, phone, email, city, birth_date, address, musical_interests)
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (
-            name.strip() if name else "Cliente Empório",
+            full_name_clean,
             phone.strip(),
             None,
             "Campo Grande",
@@ -127,28 +134,32 @@ def authenticate_or_register_customer(
         "status": "registered",
         "is_new": True,
         "customer_id": new_id,
-        "name": name.strip() if name else "Cliente Empório",
+        "name": full_name_clean,
         "phone": phone.strip(),
         "city": "Campo Grande",
         "address": None,
         "birth_date": birth_date,
         "musical_interests": [],
         "recent_orders": [],
-        "message": f"Conta criada com sucesso para {name}! Agora você tem acesso exclusivo ao seu histórico e condições especiais.",
+        "needs_address": True,
+        "needs_surname": len(full_name_clean.strip().split()) <= 1,
+        "message": f"Conta criada com sucesso para {full_name_clean}! Por favor, confirme seu nome completo, telefone e informe o endereço de entrega para cálculo do frete.",
     }
 
 
 def update_customer_profile(
     conn: sqlite3.Connection,
     phone: str,
+    name: Optional[str] = None,
     address: Optional[str] = None,
     musical_interests: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
-    """Incrementally update customer profile with address or musical interests.
+    """Incrementally update customer profile with full name, address, or musical interests.
 
     Args:
         conn: In-memory SQLite connection.
         phone: Customer telephone identifier.
+        name: Full customer name to update.
         address: Delivery address or CEP.
         musical_interests: List of tags or instruments of interest.
 
@@ -160,7 +171,7 @@ def update_customer_profile(
         return {"error": "Telefone inválido para atualização. Envie apenas os números com DDD, sem pontos, traços ou parênteses (ex: 67998123456)."}
 
     cursor = conn.cursor()
-    cursor.execute("SELECT customer_id, phone, address, musical_interests FROM customers")
+    cursor.execute("SELECT customer_id, name, phone, address, musical_interests FROM customers")
     rows = cursor.fetchall()
 
     target_id = None
@@ -180,7 +191,11 @@ def update_customer_profile(
 
     updates = []
     params = []
-    if address:
+    if name and name.strip():
+        updates.append("name = ?")
+        params.append(name.strip())
+
+    if address and address.strip():
         updates.append("address = ?")
         params.append(address.strip())
 
@@ -198,6 +213,7 @@ def update_customer_profile(
     return {
         "status": "updated",
         "customer_id": target_id,
+        "name": name,
         "address": address,
         "updated_interests": musical_interests or [],
         "message": "Dados cadastrais atualizados com sucesso!",

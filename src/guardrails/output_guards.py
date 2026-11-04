@@ -95,7 +95,7 @@ def verify_factual_grounding(
 
 
 def check_tone_and_persona(text: str) -> Tuple[str, bool]:
-    """Modulate tone to ensure warm consultative persona and sanitize outdated monochrome emojis."""
+    """Modulate tone, sanitize outdated monochrome emojis, and strip raw formatting asterisks."""
     modified = text
     modifications_made = False
 
@@ -109,11 +109,23 @@ def check_tone_and_persona(text: str) -> Tuple[str, bool]:
             modified = modified.replace(symbol, "")
             modifications_made = True
 
-    # 2. Clean up awkward spacing caused by removed emojis
+    # 2. Sanitize raw formatting asterisks (* and **) that clutter chat text without formatting
+    if "*" in modified:
+        modifications_made = True
+        # Convert markdown bullet lists starting with * to clean unicode bullet •
+        modified = re.sub(r"^\s*\*\s+", "• ", modified, flags=re.MULTILINE)
+        # Strip bold/emphasis markdown (**text** or ***text***) to clean text
+        modified = re.sub(r"\*{2,3}(.*?)\*{2,3}", r"\1", modified)
+        # Strip italic markdown (*text*) to clean text
+        modified = re.sub(r"\*([^\*\n]+)\*", r"\1", modified)
+        # Remove any lingering stray asterisks
+        modified = modified.replace("*", "")
+
+    # 3. Clean up awkward spacing caused by removed symbols
     modified = re.sub(r"  +", " ", modified)
     modified = re.sub(r"([!?.])\s+([!?.])", r"\1", modified)
 
-    # 3. Check and soften aggressive sales urgencies
+    # 4. Check and soften aggressive sales urgencies
     aggressive_patterns = [
         (r"compre\s+agora\s+antes\s+que\s+acabe", "se quiser, posso reservar ou te convidar para testar na loja"),
         (r"últimas\s+unidades,\s+corra", "temos poucas unidades disponíveis"),

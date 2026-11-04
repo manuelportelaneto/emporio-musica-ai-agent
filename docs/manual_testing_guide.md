@@ -50,7 +50,7 @@ python3 -m src.cli
 
 ---
 
-### Cenário 3: Identificação Progressiva e Cadastro no CRM (Sem CPF)
+### Cenário 3: Identificação Progressiva, Confirmação do Ambiente e Cadastro no CRM (Sem CPF)
 - **Entrada do Usuário:**
   ```text
   Gostei muito da Fender! Meu nome é Rodrigo e meu telefone para cadastro é 67998123456.
@@ -58,9 +58,15 @@ python3 -m src.cli
 - **Comportamento Esperado do Agente:**
   - Invocação da ferramenta `authenticate_or_register_customer(phone='67998123456', name='Rodrigo')`.
   - Confirmação transparente do cadastro sem nunca solicitar CPF ao cliente.
+  - **Protocolo de Confirmação do Ambiente do Cliente:** O agente apresenta um resumo estruturado e limpo (sem asteriscos soltos) confirmando os 4 eixos do cliente:
+    • Nome Completo (e solicitação gentil do sobrenome caso informado apenas o primeiro nome).
+    • Telefone de Contato (formatado com DDD).
+    • Endereço de Entrega (confirmação do endereço existente ou solicitação para cálculo do frete).
+    • Carrinho de Compras / Instrumento em Atendimento (Fender com condições à vista no PIX com 5% de desconto e parcelamento em 12x sem juros).
+    • Pergunta se os dados estão corretos ou se deseja atualizar endereço ou itens.
 - **O que verificar no Sistema:**
   - **Aba 2 (Analytics):** Invocação de `authenticate_or_register_customer` registrada no ranking de ferramentas.
-  - **Aba 3 (Customer CRM):** O perfil ativo exibe imediatamente `Customer Name: Rodrigo` e `Clean Phone: 67998123456`.
+  - **Aba 3 (Customer CRM):** O perfil ativo exibe imediatamente `Customer Name: Rodrigo`, `Clean Phone: 67998123456`, `Delivery Address` e `Active Shopping Cart`.
   - **Diretório de Clientes:** O cliente Rodrigo aparece no topo da lista ou na busca rápida por nome.
 
 ---
@@ -204,3 +210,4 @@ python3 scripts/reset_db.py
 | 9. Devolução CDC > 7d | Backend Determinístico | `get_order_details` | Recusa de arrependimento e oferta de garantia 30d |
 | 10. Devolução CDC ≤ 7d | Backend Determinístico | `get_order_details` | Aprovação de arrependimento com base no Art. 49 |
 | 11. Proteção de PII | Guardrail Camada 1 | `mask_pii` | CPF mascarado na entrada e no banco de dados |
+

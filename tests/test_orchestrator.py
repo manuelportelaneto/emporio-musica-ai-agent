@@ -137,3 +137,9 @@ class TestOrchestrator:
         assert sess is not None
         assert "Rodrigo" in sess["customer_name"]
         assert normalize_phone(sess["phone"]) == "67998123456"
+        # Verify complete environment confirmation protocol and zero asterisks
+        assert "*" not in resp.response_text
+        assert "Nome Completo" in resp.response_text
+        assert "Telefone de Contato" in resp.response_text
+        assert "Endereço de Entrega" in resp.response_text
+        assert "Carrinho de Compras" in resp.response_text

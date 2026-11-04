@@ -29,14 +29,19 @@ SYSTEM_PROMPT = """Você é o consultor de atendimento inteligente da Empório d
 1. **Consultoria Musical:** Você é caloroso, atencioso, entende profundamente de música ("persona de colega músico"), transparente e prestativo. Ajude o cliente a encontrar o melhor instrumento para seu nível e estilo.
 2. **Convite Sutil e Contextual à Loja Física:** Convide o cliente para conhecer a loja física em Campo Grande (Rua 14 de Maio, 3200) SOMENTE quando for natural e pertinente ao contexto (ex: quando o cliente perguntar o endereço da loja, se há loja física, ou quando quiser experimentar a acústica e a pegada de um instrumento antes de fechar negócio). NUNCA repita esse convite de forma mecânica ou forçada em consultas gerais de catálogo.
 3. **Escopo Estrito de Catálogo:** A Empório da Música vende EXCLUSIVAMENTE instrumentos musicais. NÃO vendemos acessórios (cordas avulsas, palhetas, cabos, amplificadores, pedais, capas, afinadores). Se o cliente insistir em acessórios, recuse com simpatia e indique que procure parceiros na região central de Campo Grande.
-4. **Identificação Progressiva e Cadastro pelo Telefone com DDD (NUNCA solicite CPF):**
+4. **Identificação, Cadastro e Confirmação Completa do Ambiente do Cliente:**
    - Não exija login logo de início. O cliente pode pesquisar produtos e tirar dúvidas livremente.
-   - Quando o cliente solicitar informações pessoais (ex: rastreio de pedido, devolução/troca), avançar para compra ou salvar preferências, solicite o **nome e o telefone completo com DDD** (ex: '67998123456' ou '11987654321').
-   - **NUNCA solicite CPF ao cliente:** A Empório da Música cadastra e identifica clientes exclusivamente por Telefone e Nome. Não solicitamos nem armazenamos CPF no sistema.
-   - **PADRONIZAÇÃO DE ENTRADA:** Oriente o cliente a enviar o telefone no formato com DDD apenas em números (ex: '67998123456' ou '11987654321'). Porém, se o cliente enviar com pontuação (ex: '(67) 99812-3456'), aceite e normalize normalmente.
+   - Quando o cliente solicitar informações pessoais (ex: rastreio de pedido, devolução/troca), avançar para compra ou salvar preferências, solicite o nome completo e o telefone com DDD (ex: '67998123456' ou '11987654321').
+   - NUNCA solicite CPF ao cliente: A Empório da Música cadastra e identifica clientes exclusivamente por Telefone e Nome Completo. Não solicitamos nem armazenamos CPF no sistema.
    - Assim que o cliente fornecer o telefone, invoque IMEDIATAMENTE a ferramenta `authenticate_or_register_customer`.
-   - Se o telefone já foi fornecido ou a conta já foi autenticada nesta sessão, NUNCA pergunte o telefone de novo. Avance para a próxima etapa (endereço, frete, simulação de pagamento).
-   - Se o cliente informar endereço ou cidade (ex: Mauá/SP), invoque `update_customer_profile` para registrar os dados e informe as opções de frete correspondentes.
+   - **PROTOCOLO OBRIGATÓRIO DE CONFIRMAÇÃO DO AMBIENTE DO CLIENTE:**
+     Sempre que cadastrar um novo cliente ou acessar/autenticar a conta de um cliente existente, você DEVE apresentar um resumo e pedir confirmação dos seguintes dados essenciais:
+     • Nome Completo: Confirme o nome completo registrado (se o cliente tiver informado apenas o primeiro nome, confirme-o e solicite gentilmente o sobrenome para o registro completo de entrega).
+     • Telefone de Contato: Confirme o telefone com DDD formatado.
+     • Endereço de Entrega: Se já cadastrado, confirme se continua o mesmo; se ainda não houver endereço, solicite o endereço completo (rua, número, bairro, cidade e CEP) para cálculo preciso do frete e prazos.
+     • Carrinho de Compras / Instrumento em Atendimento: Se o cliente já tiver consultado ou selecionado um instrumento nesta sessão, confirme o modelo, valor à vista no PIX com 5% de desconto e parcelamento em 12x sem juros; se ainda não escolheu, informe que o carrinho está aberto e pergunte qual modelo deseja adicionar.
+     Finalize perguntando se todos os dados do ambiente estão corretos ou se o cliente deseja atualizar o endereço ou trocar o instrumento.
+   - Se o cliente informar endereço ou cidade (ex: Mauá/SP, Rua 14 de Maio...), invoque `update_customer_profile` para registrar os dados e informe as opções de frete correspondentes.
 5. **Políticas da Loja:**
    - **Pagamento:** PIX tem 5% de desconto à vista sobre o preço de tabela (NÃO cumulativo com produtos em promoção). Cartão em até 12x sem juros (parcelas mínimas: R$ 100 para 7-12x; R$ 80 para 4-6x; R$ 50 para até 3x).
    - **Trocas e Devoluções:** Arrependimento de compra online em até 7 dias corridos após o recebimento (CDC Art. 49). Garantia legal de 30 dias para defeitos de fabricação.
@@ -48,7 +53,9 @@ SYSTEM_PROMPT = """Você é o consultor de atendimento inteligente da Empório d
      * `query_store_policy`: para consultar regras oficiais da loja, frete, garantia, horários e endereço.
      * `authenticate_or_register_customer`: para identificar ou cadastrar o cliente pelo telefone.
      * `update_customer_profile`: para atualizar endereço e preferências musicais.
-7. **Diretriz Estrita de Emojis:** Reduza ao máximo o uso de emojis. Priorize sempre um texto limpo, elegante e profissional de colega músico consultor. No máximo 1 emoji moderno e colorido por mensagem (ex: 🎵 ou ✅), ou nenhum. NUNCA utilize emojis antigos monocromáticos, desenhados em preto-e-branco ou caracteres obsoletos (como ☺️, ☻, ☹, ☺, ♫, ♬, 🎸). Se houver dúvida, prefira não usar nenhum emoji.
+7. **Diretriz Estrita de Formatação e Emojis (Zero Asteriscos de Formatação):**
+   - NUNCA utilize asteriscos (*) ou duplos asteriscos (**) para formatar o texto (negrito ou itálico). Escreva o texto de forma limpa, direta e legível, usando marcadores unicode limpos (como •) para listas de opções, sem asteriscos aparentes.
+   - Reduza ao máximo o uso de emojis. Priorize sempre um texto limpo, elegante e profissional de colega músico consultor. No máximo 1 emoji moderno e colorido por mensagem (ex: 🎵 ou ✅), ou nenhum. NUNCA utilize emojis antigos monocromáticos, desenhados em preto-e-branco ou caracteres obsoletos (como ☺️, ☻, ☹, ☺, ♫, ♬, 🎸). Se houver dúvida, prefira não usar nenhum emoji.
 8. **Saudações, Cumprimentos e Interações Humanizadas:**
    - Ao receber saudações básicas (ex: 'oi', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'tudo bem?', 'como vai?'), responda exatamente como um colega músico e consultor humano faria: retribua o cumprimento de forma calorosa, simpática e educada, pergunte como a pessoa está e como você pode ajudá-la hoje no mundo dos instrumentos musicais.
    - NUNCA responda friamente ou roboticamente a um cumprimento.
@@ -173,13 +180,17 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "update_customer_profile",
-            "description": "Atualiza dados cadastrais complementares (endereço ou preferências musicais) de forma fluida durante o atendimento.",
+            "description": "Atualiza dados cadastrais complementares (nome completo, endereço ou preferências musicais) de forma fluida durante o atendimento.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "phone": {
                         "type": "string",
                         "description": "Telefone do cliente autenticado",
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Nome completo atualizado do cliente",
                     },
                     "address": {
                         "type": "string",
@@ -408,6 +419,7 @@ class ConversationalOrchestrator:
             return update_customer_profile(
                 conn=self.db_conn,
                 phone=arguments.get("phone", ""),
+                name=arguments.get("name"),
                 address=arguments.get("address"),
                 musical_interests=arguments.get("musical_interests"),
             )
@@ -550,7 +562,7 @@ class ConversationalOrchestrator:
                     if sample in lowered:
                         name_val = sample.capitalize()
                         break
-            name_val = name_val or "Cliente Empório"
+            name_val = name_val or ""
 
             res = self._execute_tool(
                 "authenticate_or_register_customer",
@@ -564,8 +576,9 @@ class ConversationalOrchestrator:
                 session_state["phone"] = res["phone"]
                 session_state["customer_name"] = res["name"]
 
-                # Check if address was provided (e.g. Mauá, SP, São Paulo, Campo Grande)
-                addr_match = re.search(r"(?i)(?:em|para|endere[çc]o[:\s]+)?([A-Za-zÀ-ÖØ-öø-ÿ\s]+(?:\/[A-Za-z]{2}|,\s*[A-Za-z]{2}))", user_text)
+                # Check if address was provided (e.g. Mauá/SP, Rua 14 de Maio, São Paulo/SP)
+                uf_pat = r"(?:AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)"
+                addr_match = re.search(rf"(?i)\b(?:em|para|endere[çc]o[:\s]+)?([A-Za-zÀ-ÖØ-öø-ÿ\s]+(?:\/{uf_pat}|,\s*{uf_pat}))\b", user_text)
                 address_val = session_state.get("address")
                 if "mauá" in lowered or "maua" in lowered:
                     address_val = "Mauá/SP"
@@ -582,33 +595,47 @@ class ConversationalOrchestrator:
 
                 self.session_profiles[session_id] = session_state
 
-                # Check if customer has an instrument context or order in progress
+                # Track cart or instruments in progress
                 affinity = session_state.get("affinity_tags", [])
-                if "prs" in str(affinity).lower() or "guitarra" in str(affinity).lower():
-                    is_outside_cg = address_val and "campo grande" not in address_val.lower()
-                    loc_desc = f" para {address_val}" if address_val else ""
-                    shipping_desc = (
-                        f"Para o envio{loc_desc}, despachamos com seguro total de carga via Correios (SEDEX: 2 a 4 dias úteis ou PAC: 5 a 10 dias úteis) e transportadora Jadlog (4 a 7 dias úteis). O rastreamento é gerado assim que o instrumento é despachado!"
-                        if is_outside_cg
-                        else "Como a compra é acima de R$ 500,00, o frete via motoboy para Grande Campo Grande é 100% GRÁTIS (1 a 3 dias úteis)!"
-                    )
-                    ans = (
-                        f"Perfeito, {res['name']}! Seu cadastro com o telefone {res['phone']} foi confirmado com sucesso. 🎉\n\n"
-                        f"**Resumo do seu Pedido (PRS SE Custom 24):**\n"
-                        f"• **Condições de Pagamento:** R$ 6.460,00 à vista via PIX (com 5% de desconto!) ou até 12x de R$ 566,67 sem juros no cartão de crédito.\n"
-                        f"• **Opções de Frete:** {shipping_desc}\n\n"
-                        f"Qual modalidade de pagamento você prefere para gerarmos o pedido: PIX ou Cartão de Crédito?"
-                    )
-                    return ans, tools_called, tool_payloads, 115, 65
+                cart_items = session_state.get("cart_items", [])
+                if not cart_items and ("prs" in str(affinity).lower() or "guitarra" in str(affinity).lower()):
+                    cart_items = [{"name": "PRS SE Custom 24", "pix_price": 6460.00, "installments": "12x de R$ 566,67"}]
+                    session_state["cart_items"] = cart_items
+                elif not cart_items and ("c40" in lowered or "violão" in str(affinity).lower() or "violao" in str(affinity).lower()):
+                    cart_items = [{"name": "Yamaha C40", "pix_price": 569.91, "installments": "12x de R$ 49,99"}]
+                    session_state["cart_items"] = cart_items
 
-                orders_summary = ""
-                if res.get("recent_orders"):
-                    orders_summary = f" Localizei {len(res['recent_orders'])} pedido(s) recente(s) em sua conta."
+                self.session_profiles[session_id] = session_state
+
+                # Prepare Clean Confirmation Data (Zero Raw Asterisks)
+                name_parts = (res["name"] or "").strip().split()
+                if len(name_parts) <= 1:
+                    full_name_disp = f"{res['name']} (por favor, confirme seu sobrenome para constar no cadastro oficial de entrega)"
+                else:
+                    full_name_disp = res["name"]
+
+                phone_disp = res["phone"]
+                addr_disp = address_val or res.get("address") or "Pendente de confirmação (por favor, informe rua, número, bairro, cidade e CEP para cálculo do frete)"
+
+                if cart_items:
+                    cart_lines = [
+                        f"  • {item['name']}: R$ {item.get('pix_price', 0):.2f} à vista no PIX (com 5% de desconto) ou {item.get('installments', 'em até 12x sem juros no cartão')}"
+                        for item in cart_items
+                    ]
+                    cart_disp = "\n".join(cart_lines)
+                else:
+                    cart_disp = "  • Nenhum instrumento adicionado ao carrinho no momento."
+
+                action_text = "Seu cadastro foi realizado com sucesso" if res.get("is_new") else "Localizamos sua conta com sucesso"
 
                 ans = (
-                    f"Que ótimo te receber, {res['name']}!{orders_summary} "
-                    f"Sua conta está autenticada com sucesso pelo telefone {res['phone']}. Em que posso te ajudar hoje? "
-                    f"Posso te mostrar instrumentos do nosso catálogo, consultar detalhes de pedidos ou tirar dúvidas sobre pagamentos!"
+                    f"Olá, {res['name']}! {action_text} no sistema da Empório da Música. ✅\n\n"
+                    f"Por favor, confirme se os seus dados cadastrais e de compra estão atualizados:\n\n"
+                    f"• Nome Completo: {full_name_disp}\n"
+                    f"• Telefone de Contato: {phone_disp}\n"
+                    f"• Endereço de Entrega: {addr_disp}\n"
+                    f"• Carrinho de Compras / Instrumento em Atendimento:\n{cart_disp}\n\n"
+                    f"Está tudo correto com esses dados? Se desejar atualizar o endereço, incluir o sobrenome ou alterar algum item do carrinho, é só me avisar que atualizo agora mesmo para você!"
                 )
                 return ans, tools_called, tool_payloads, 115, 65
 
@@ -885,6 +912,9 @@ class ConversationalOrchestrator:
                 "customer_id": None,
                 "phone": None,
                 "customer_name": None,
+                "address": None,
+                "city": None,
+                "cart_items": [],
                 "affinity_tags": [],
                 "sentiment_history": [],
                 "alerts": [],
@@ -1032,6 +1062,26 @@ class ConversationalOrchestrator:
                             session_state["customer_id"] = t_result.get("customer_id")
                             session_state["phone"] = t_result.get("phone")
                             session_state["customer_name"] = t_result.get("name")
+                            if t_result.get("address"):
+                                session_state["address"] = t_result.get("address")
+
+                        if t_name == "update_customer_profile" and isinstance(t_result, dict):
+                            if t_args.get("address"):
+                                session_state["address"] = t_args.get("address")
+                            if t_args.get("name"):
+                                session_state["customer_name"] = t_args.get("name")
+
+                        if t_name == "lookup_catalog" and isinstance(t_result, list):
+                            for prod in t_result[:3]:
+                                if isinstance(prod, dict) and prod.get("name"):
+                                    existing_names = [c.get("name") for c in session_state.setdefault("cart_items", []) if isinstance(c, dict)]
+                                    if prod["name"] not in existing_names:
+                                        session_state["cart_items"].append({
+                                            "name": prod["name"],
+                                            "regular_price": prod.get("regular_price"),
+                                            "pix_price": prod.get("pix_price"),
+                                            "installments": prod.get("installments"),
+                                        })
 
                         self.audit_store.log_audit_event(
                             session_id=session_id,
@@ -1136,6 +1186,8 @@ class ConversationalOrchestrator:
                     session_state["customer_id"] = reg_res.get("customer_id")
                     session_state["phone"] = reg_res.get("phone")
                     session_state["customer_name"] = reg_res.get("name")
+                    if reg_res.get("address"):
+                        session_state["address"] = reg_res.get("address")
                 self.audit_store.log_audit_event(
                     session_id=session_id,
                     event_type="TOOL_INVOCATION",
@@ -1198,6 +1250,8 @@ class ConversationalOrchestrator:
             customer_id=session_state.get("customer_id"),
             phone=session_state.get("phone"),
             customer_name=session_state.get("customer_name"),
+            address=session_state.get("address"),
+            cart_items=session_state.get("cart_items", []),
             affinity_tags=session_state.get("affinity_tags", []),
             sentiment_score=turn_sentiment,
             interaction_category=category,

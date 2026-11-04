@@ -352,17 +352,28 @@ with tab_crm:
 
     col_crm1, col_crm2 = st.columns(2)
     with col_crm1:
-        st.markdown("**Identification & Contact**")
+        st.markdown("**Identification & Contact (Verified by Agent)**")
         st.text_input("Customer Name", value=crm_data.get("customer_name") or "Unidentified Visitor", disabled=True)
         st.text_input("Clean Phone (Digits Only)", value=crm_data.get("phone") or "Not Provided", disabled=True)
         st.text_input("Registration Status", value=str(crm_data.get("registration_status", "GUEST")).upper(), disabled=True)
+        st.text_input("Delivery Address (Backend Sync)", value=crm_data.get("address") or "Pendente de confirmação", disabled=True)
 
     with col_crm2:
-        st.markdown("**Customer Context & Loyalty**")
+        st.markdown("**Customer Context, Cart & Loyalty**")
         orders_count = crm_data.get("orders_count", 0) or 0
         loyalty = "Gold Tier (Frequent Buyer)" if orders_count > 0 else "New Prospect"
         st.text_input("Loyalty Tier", value=loyalty, disabled=True)
         st.text_input("Orders On Record", value=str(orders_count), disabled=True)
+
+        cart_items = crm_data.get("cart_items") or []
+        if cart_items and isinstance(cart_items, list):
+            cart_summary = ", ".join([
+                f"{item.get('name', 'Instrumento')} (R$ {item.get('pix_price', item.get('regular_price', 0)):.2f})"
+                for item in cart_items if isinstance(item, dict)
+            ])
+        else:
+            cart_summary = "Nenhum instrumento adicionado ao carrinho"
+        st.text_input("Active Shopping Cart (Backend Sync)", value=cart_summary, disabled=True)
         
         raw_affinity = crm_data.get("affinity_tags")
         if isinstance(raw_affinity, list):

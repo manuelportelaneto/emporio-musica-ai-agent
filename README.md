@@ -359,7 +359,7 @@ source .venv/bin/activate
 pytest tests/ -v
 ```
 
-### Test Results Summary (49 Passed)
+### Test Results Summary (50 Passed)
 | Test Suite | Scope | Status |
 | :--- | :--- | :--- |
 | `TestCatalogService` (5 tests) | SQLite tables population, query matching, 5% PIX discount, non-cumulative promotions, installment tiers (12x/6x/3x) | [PASSED] |
@@ -367,7 +367,7 @@ pytest tests/ -v
 | `TestPolicyService` (2 tests) | Policy manual semantic search, store address (Rua 14 de Maio 3200), motoboy delivery rules | [PASSED] |
 | `TestCustomerService` (5 tests) | Phone normalization, progressive authentication with recent orders, dynamic customer registration, profile updates, and in-place name synchronization | [PASSED] |
 | `TestInputGuardrails` (6 tests) | Brazilian CPF masking, Credit Card masking, accessory interception, instrument spec exception handling, prompt injection defense, non-musical out-of-scope products | [PASSED] |
-| `TestOutputGuardrails` (6 tests) | Currency extraction, factual grounding verification against tool payload, hallucination detection, commercial tone modulation, and monochrome emoji sanitization | [PASSED] |
+| `TestOutputGuardrails` (7 tests) | Currency extraction, factual grounding verification against tool payload, hallucination detection, commercial tone modulation, monochrome emoji sanitization, and raw formatting asterisk stripping | [PASSED] |
 | `TestAuditStore` (10 tests) | Conversation history persistence, audit telemetry logging, session metrics aggregation, customer session CRM upsert, Observability HUD formatting, session list query, full transcript retrieval, turn count tracking, tool ranking aggregation, and full database reset | [PASSED] |
 | `TestOrchestrator` (10 tests) | Complete conversational turns, tool routing, accessory bypass, order tracking, store policy retrieval, customer authentication flow, PII redaction, and deterministic registration synchronization | [PASSED] |
 
