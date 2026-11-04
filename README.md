@@ -1,10 +1,12 @@
 # Empório da Música — Autonomous Conversational AI Assistant
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Release: v1.0.0-gold](https://img.shields.io/badge/release-v1.0.0--gold-gold.svg)](https://github.com/manuelportelaneto/emporio-musica-ai-agent/releases)
+[![CI / CD: Passing](https://img.shields.io/badge/CI%2FCD-Passing-brightgreen.svg)](.github/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Architecture: Spec-Driven](https://img.shields.io/badge/architecture-spec--driven-emerald.svg)](SPEC.md)
-[![Tests: 45 Passed](https://img.shields.io/badge/tests-45%20passed-brightgreen.svg)](tests/)
+[![Tests: 52 Passed](https://img.shields.io/badge/tests-52%20passed-brightgreen.svg)](tests/)
 
 Autonomous, production-grade conversational AI assistant and telemetry engine engineered for **Empório da Música**, a traditional brick-and-mortar and digital musical instruments retailer in Campo Grande/MS (founded in 2008). 
 
@@ -237,9 +239,13 @@ emporio-musica-ai-agent/
 │   │   └── audit_store.py        # Dual-layer SQLite persistence & telemetry
 │   ├── orchestrator.py           # Native tool-calling agent logic & persona
 │   └── cli.py                    # 3-Stage English Evaluator CLI with HUD
+├── .github/
+│   └── workflows/
+│       └── ci.yml                     # GitHub Actions CI/CD Quality Gate & AST compilation
 ├── app.py                        # Streamlit Evaluator Console & Web Dashboard
 ├── examples/                     # Real execution scenarios & transcripts
-├── tests/                        # Comprehensive test suite (45 pytest unit tests)
+├── tests/                        # Comprehensive test suite (52 pytest unit tests)
+│   ├── test_app_compilation.py   # AST parse & bytecode compilation integrity gate
 │   ├── test_services.py          # Unit tests for catalog, orders, and policies
 │   ├── test_guardrails.py        # Unit tests for input/output defense layers
 │   ├── test_audit_store.py       # Unit tests for persistence and telemetry HUD
@@ -359,9 +365,10 @@ source .venv/bin/activate
 pytest tests/ -v
 ```
 
-### Test Results Summary (50 Passed)
+### Test Results Summary (52 Passed)
 | Test Suite | Scope | Status |
 | :--- | :--- | :--- |
+| `TestAppCompilation` (2 tests) | AST syntax parsing and bytecode compilation for `app.py`, CLI, backend services, scripts, and tests | [PASSED] |
 | `TestCatalogService` (5 tests) | SQLite tables population, query matching, 5% PIX discount, non-cumulative promotions, installment tiers (12x/6x/3x) | [PASSED] |
 | `TestOrderService` (6 tests) | Order lookup by ID, lookup by customer name, CDC 7-day remorse calculation ($\le 7\text{ days}$ eligible, $> 7\text{ days}$ expired, undelivered handling) | [PASSED] |
 | `TestPolicyService` (2 tests) | Policy manual semantic search, store address (Rua 14 de Maio 3200), motoboy delivery rules | [PASSED] |
@@ -553,7 +560,7 @@ pytest tests/ -v
 pytest tests/ -v
 ```
 
-All **45 tests** across catalog services, order tracking, CDC Art. 49 returns, multi-layer guardrails, PII masking, and telemetry persistence will execute and report green (`45 passed`).
+All **52 tests** across AST compilation integrity, catalog services, order tracking, CDC Art. 49 returns, multi-layer guardrails, PII masking, and telemetry persistence will execute and report green (`52 passed`).
 
 ---
 

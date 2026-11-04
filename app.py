@@ -502,8 +502,6 @@ with tab_crm:
             "- **To test Order Tracking / CDC Return:** Use **Pedro Henrique** (`67984321098`) with **Pedido #1** (Martin D-28) or **Thiago Barbosa** (`67983216543`) with **Pedido #2** (Taylor 110e).\n"
             "- **To test Anonymous to Registered Flow:** Start chatting without identifying yourself, select an instrument (e.g. PRS SE Custom 24), then provide **Lucas Mendes** (`67998123456`) or your own number."
         )
-            "- **To test Anonymous to Registered Flow:** Start chatting without identifying yourself, select an instrument (e.g. PRS SE Custom 24), then provide **Lucas Mendes** (`67998123456`) or your own number."
-        )
     except Exception as e:
         st.warning(f"Could not load customer directory: {e}")
 
