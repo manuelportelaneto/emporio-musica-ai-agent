@@ -208,6 +208,13 @@ with st.sidebar:
             st.success("History cleared.")
             st.rerun()
 
+    with st.expander("🛠️ Database Maintenance"):
+        st.caption("Reset operational SQLite audit tables to pristine challenge state (0 test events).")
+        if st.button("🧹 Purge All Test Records", width="stretch"):
+            st.session_state.audit_store.clear_all_sessions()
+            st.success("Database restored to 100% clean state.")
+            st.rerun()
+
     st.markdown("---")
 
     # 3. Quick Telemetry KPI Card
@@ -392,31 +399,61 @@ with tab_crm:
     st.markdown("---")
 
     # Evaluator Customer Directory (LGPD Compliant Sandbox)
-    st.subheader("👥 Directory of Seed Customers (Evaluator Simulation Sandbox)")
+    st.subheader("👥 Directory of Customers (Seed Profiles & Live Registrations)")
     st.caption(
-        "Pre-loaded customer profiles with order histories from SQLite, sanitized for LGPD compliance. "
+        "Pre-loaded customer profiles with order histories and newly registered users from SQLite. "
         "Use these identities to test progressive profiling, return policies, and order tracking."
     )
 
     try:
         db_conn = st.session_state.orchestrator.db_conn
         cursor = db_conn.cursor()
-        cursor.execute(
-            """
-            SELECT 
-                c.customer_id,
-                c.name,
-                c.phone,
-                c.city,
-                COUNT(o.order_id) as total_orders,
-                GROUP_CONCAT('Pedido #' || o.order_id || ' (' || o.status || ', R$ ' || printf('%.2f', o.total_amount) || ')', ' | ') as orders_summary
-            FROM customers c
-            LEFT JOIN orders o ON c.customer_id = o.customer_id
-            GROUP BY c.customer_id
-            ORDER BY total_orders DESC, c.customer_id ASC
-            LIMIT 15
-            """
-        )
+
+        col_f1, col_f2 = st.columns([2, 1])
+        with col_f1:
+            search_query = st.text_input("🔍 Search customer by Name or Phone (e.g., 'Rodrigo', 'Lucas', '67998123456')", value="").strip()
+        with col_f2:
+            sort_order = st.selectbox("Order by", ["Most Recent First (New Registrations)", "Highest Orders First (Seed Frequent Buyers)"])
+
+        order_clause = "c.customer_id DESC" if "Most Recent" in sort_order else "total_orders DESC, c.customer_id ASC"
+
+        if search_query:
+            clean_search = re.sub(r"\D", "", search_query)
+            cursor.execute(
+                f"""
+                SELECT 
+                    c.customer_id,
+                    c.name,
+                    c.phone,
+                    c.city,
+                    COUNT(o.order_id) as total_orders,
+                    GROUP_CONCAT('Pedido #' || o.order_id || ' (' || o.status || ', R$ ' || printf('%.2f', o.total_amount) || ')', ' | ') as orders_summary
+                FROM customers c
+                LEFT JOIN orders o ON c.customer_id = o.customer_id
+                WHERE c.name LIKE ? OR c.phone LIKE ?
+                GROUP BY c.customer_id
+                ORDER BY {order_clause}
+                LIMIT 50
+                """,
+                (f"%{search_query}%", f"%{clean_search or search_query}%"),
+            )
+        else:
+            cursor.execute(
+                f"""
+                SELECT 
+                    c.customer_id,
+                    c.name,
+                    c.phone,
+                    c.city,
+                    COUNT(o.order_id) as total_orders,
+                    GROUP_CONCAT('Pedido #' || o.order_id || ' (' || o.status || ', R$ ' || printf('%.2f', o.total_amount) || ')', ' | ') as orders_summary
+                FROM customers c
+                LEFT JOIN orders o ON c.customer_id = o.customer_id
+                GROUP BY c.customer_id
+                ORDER BY {order_clause}
+                LIMIT 50
+                """
+            )
         cust_rows = cursor.fetchall()
         
         directory_data = []
@@ -432,7 +469,7 @@ with tab_crm:
                 unformatted_input = digits
             else:
                 masked_phone = "(67) 9****-****"
-                unformatted_input = "67998123456"
+                unformatted_input = digits or "67998123456"
 
             directory_data.append({
                 "Customer ID": f"#{row['customer_id']}",
@@ -444,10 +481,16 @@ with tab_crm:
                 "Simulation Input (Phone)": unformatted_input,
             })
 
-        st.dataframe(pd.DataFrame(directory_data), width="stretch")
+        if directory_data:
+            st.dataframe(pd.DataFrame(directory_data), width="stretch")
+        else:
+            st.info(f"No customers found matching '{search_query}'.")
+
         st.info(
             "💡 **Evaluator Simulation Quick Guide:**\n"
             "- **To test Order Tracking / CDC Return:** Use **Pedro Henrique** (`67984321098`) with **Pedido #1** (Martin D-28) or **Thiago Barbosa** (`67983216543`) with **Pedido #2** (Taylor 110e).\n"
+            "- **To test Anonymous to Registered Flow:** Start chatting without identifying yourself, select an instrument (e.g. PRS SE Custom 24), then provide **Lucas Mendes** (`67998123456`) or your own number."
+        )
             "- **To test Anonymous to Registered Flow:** Start chatting without identifying yourself, select an instrument (e.g. PRS SE Custom 24), then provide **Lucas Mendes** (`67998123456`) or your own number."
         )
     except Exception as e:

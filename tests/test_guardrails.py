@@ -145,3 +145,12 @@ class TestOutputGuardrails:
         softened, modified = check_tone_and_persona(text)
         assert modified is True
         assert "compre agora antes que acabe" not in softened.lower()
+
+    def test_monochrome_emoji_sanitization(self):
+        text_with_outline_emojis = "Olá! ☺️ No momento não temos sanfona ♫. Posso te ajudar com um teclado? ♬"
+        sanitized, changed = check_tone_and_persona(text_with_outline_emojis)
+        assert changed is True
+        assert "☺️" not in sanitized
+        assert "♫" not in sanitized
+        assert "♬" not in sanitized
+        assert "Olá! No momento não temos sanfona" in sanitized

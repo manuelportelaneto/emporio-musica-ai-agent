@@ -95,11 +95,25 @@ def verify_factual_grounding(
 
 
 def check_tone_and_persona(text: str) -> Tuple[str, bool]:
-    """Modulate tone to ensure warm consultative persona without aggressive sales tactics."""
+    """Modulate tone to ensure warm consultative persona and sanitize outdated monochrome emojis."""
     modified = text
     modifications_made = False
 
-    # Check and soften aggressive sales urgencies
+    # 1. Sanitize outdated monochrome / wireframe emojis and symbols (e.g. ☺️, ☻, ☹, ☺, ♫, ♬)
+    # These often render as ugly black/white glyphs on Linux/browsers without emoji fonts
+    monochrome_emojis = [
+        "☺️", "☺", "☻", "☹", "♫", "♬", "♩", "♪",
+    ]
+    for symbol in monochrome_emojis:
+        if symbol in modified:
+            modified = modified.replace(symbol, "")
+            modifications_made = True
+
+    # 2. Clean up awkward spacing caused by removed emojis
+    modified = re.sub(r"  +", " ", modified)
+    modified = re.sub(r"([!?.])\s+([!?.])", r"\1", modified)
+
+    # 3. Check and soften aggressive sales urgencies
     aggressive_patterns = [
         (r"compre\s+agora\s+antes\s+que\s+acabe", "se quiser, posso reservar ou te convidar para testar na loja"),
         (r"últimas\s+unidades,\s+corra", "temos poucas unidades disponíveis"),
@@ -111,7 +125,7 @@ def check_tone_and_persona(text: str) -> Tuple[str, bool]:
             modified = re.sub(pat, rep, modified, flags=re.IGNORECASE)
             modifications_made = True
 
-    return modified, modifications_made
+    return modified.strip(), modifications_made
 
 
 def validate_output(

@@ -58,6 +58,17 @@ def authenticate_or_register_customer(
 
     if matched_row:
         customer_id = matched_row["customer_id"]
+
+        # If a specific name is provided that differs from file, update it so customer identity stays accurate
+        if name and name.strip() and name.strip().lower() != (matched_row["name"] or "").strip().lower():
+            cursor.execute(
+                "UPDATE customers SET name = ? WHERE customer_id = ?",
+                (name.strip(), customer_id),
+            )
+            conn.commit()
+            cursor.execute("SELECT * FROM customers WHERE customer_id = ?", (customer_id,))
+            matched_row = cursor.fetchone()
+
         # Fetch past orders for contextualization
         cursor.execute(
             """

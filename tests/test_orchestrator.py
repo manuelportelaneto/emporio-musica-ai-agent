@@ -127,3 +127,13 @@ class TestOrchestrator:
         orchestrator.configure_llm(provider="offline", persist=False)
         assert orchestrator.provider == "offline"
         assert orchestrator.llm_client is None
+
+    def test_deterministic_registration_flow(self, orchestrator):
+        from src.services.customer_service import normalize_phone
+        session = "session-rodrigo-test"
+        resp = orchestrator.process_turn(session, "Meu nome é Rodrigo e meu telefone para cadastro é 67998123456.")
+        assert any("authenticate_or_register_customer" in t for t in resp.tools_invoked)
+        sess = orchestrator.audit_store.get_customer_session(session)
+        assert sess is not None
+        assert "Rodrigo" in sess["customer_name"]
+        assert normalize_phone(sess["phone"]) == "67998123456"

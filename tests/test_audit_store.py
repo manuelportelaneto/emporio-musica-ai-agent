@@ -200,3 +200,14 @@ class TestAuditStore:
         assert metrics["total_tokens"] == 150
         assert metrics["avg_latency_ms"] > 0
 
+    def test_clear_all_sessions(self, temp_audit_store):
+        temp_audit_store.save_message("s1", "user", "Hello s1")
+        temp_audit_store.save_message("s2", "user", "Hello s2")
+        temp_audit_store.log_audit_event("s1", "AGENT_RESPONSE", "orchestrator", latency_ms=10.0)
+        
+        assert len(temp_audit_store.list_all_sessions()) >= 2
+        temp_audit_store.clear_all_sessions()
+        assert len(temp_audit_store.list_all_sessions()) == 0
+        assert len(temp_audit_store.get_conversation_history("s1")) == 0
+        assert len(temp_audit_store.get_audit_logs()) == 0
+

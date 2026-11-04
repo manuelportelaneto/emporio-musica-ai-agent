@@ -173,6 +173,17 @@ class TestCustomerService:
         assert res["customer_id"] > 0
         assert res["name"] == "Marina Silva"
 
+    def test_authenticate_or_register_updates_name(self, db_conn):
+        # Register or update Rodrigo with Lucas's phone
+        res = authenticate_or_register_customer(
+            conn=db_conn,
+            name="Rodrigo",
+            phone="67998123456",
+        )
+        assert res["status"] == "authenticated"
+        assert res["name"] == "Rodrigo"
+        assert res["customer_id"] == 1
+
     def test_update_customer_profile(self, db_conn):
         phone = "67911223344"
         res = update_customer_profile(

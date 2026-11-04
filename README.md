@@ -212,7 +212,12 @@ emporio-musica-ai-agent/
 │   ├── promotions.csv            # Active discount campaigns
 │   └── políticas_da_loja.pdf     # Official store policy manual
 ├── docs/
-│   └── desafio_tecnico_ai_eng_artefact.pdf # Original technical case specification
+│   ├── desafio_tecnico_ai_eng_artefact.pdf # Original technical case specification
+│   ├── architecture_diagram.png           # End-to-end fullstack architecture diagram
+│   └── manual_testing_guide.md            # Comprehensive manual testing battery & verification guide
+├── scripts/
+│   ├── reset_db.py                        # Utility to purge test events and restore pristine SQLite tables
+│   └── generate_architecture_diagram.py   # High-resolution architecture visualization generator
 ├── src/
 │   ├── __init__.py
 │   ├── config.py                 # Multi-provider LLM settings & environment
@@ -354,17 +359,20 @@ source .venv/bin/activate
 pytest tests/ -v
 ```
 
-### Test Results Summary (45 Passed)
+### Test Results Summary (49 Passed)
 | Test Suite | Scope | Status |
 | :--- | :--- | :--- |
 | `TestCatalogService` (5 tests) | SQLite tables population, query matching, 5% PIX discount, non-cumulative promotions, installment tiers (12x/6x/3x) | [PASSED] |
 | `TestOrderService` (6 tests) | Order lookup by ID, lookup by customer name, CDC 7-day remorse calculation ($\le 7\text{ days}$ eligible, $> 7\text{ days}$ expired, undelivered handling) | [PASSED] |
 | `TestPolicyService` (2 tests) | Policy manual semantic search, store address (Rua 14 de Maio 3200), motoboy delivery rules | [PASSED] |
-| `TestCustomerService` (3 tests) | Phone normalization, progressive authentication with recent orders, dynamic customer registration, and profile updates | [PASSED] |
+| `TestCustomerService` (5 tests) | Phone normalization, progressive authentication with recent orders, dynamic customer registration, profile updates, and in-place name synchronization | [PASSED] |
 | `TestInputGuardrails` (6 tests) | Brazilian CPF masking, Credit Card masking, accessory interception, instrument spec exception handling, prompt injection defense, non-musical out-of-scope products | [PASSED] |
-| `TestOutputGuardrails` (5 tests) | Currency extraction, factual grounding verification against tool payload, hallucination detection, commercial tone modulation | [PASSED] |
-| `TestAuditStore` (9 tests) | Conversation history persistence, audit telemetry logging, session metrics aggregation, customer session CRM upsert, Observability HUD formatting, session list query, full transcript retrieval, turn count tracking, and tool ranking aggregation | [PASSED] |
-| `TestOrchestrator` (9 tests) | Complete conversational turns, tool routing, accessory bypass, order tracking, store policy retrieval, customer authentication flow, and PII redaction | [PASSED] |
+| `TestOutputGuardrails` (6 tests) | Currency extraction, factual grounding verification against tool payload, hallucination detection, commercial tone modulation, and monochrome emoji sanitization | [PASSED] |
+| `TestAuditStore` (10 tests) | Conversation history persistence, audit telemetry logging, session metrics aggregation, customer session CRM upsert, Observability HUD formatting, session list query, full transcript retrieval, turn count tracking, tool ranking aggregation, and full database reset | [PASSED] |
+| `TestOrchestrator` (10 tests) | Complete conversational turns, tool routing, accessory bypass, order tracking, store policy retrieval, customer authentication flow, PII redaction, and deterministic registration synchronization | [PASSED] |
+
+> [!TIP]
+> To execute the manual test battery (including Prompt Injection, Out-of-Scope refusals, CDC returns, and CRM registration checks), see [docs/manual_testing_guide.md](docs/manual_testing_guide.md). To purge test data and return `emporio_records.db` to 0 records, run `python3 scripts/reset_db.py` or use the sidebar maintenance tool in Streamlit.
 
 ---
 

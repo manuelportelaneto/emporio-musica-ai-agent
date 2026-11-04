@@ -275,6 +275,15 @@ class AuditStore:
             cursor.execute("DELETE FROM customer_sessions WHERE session_id = ?", (session_id,))
             conn.commit()
 
+    def clear_all_sessions(self) -> None:
+        """Purge all conversation history, audit logs, and customer session tracking for pristine state."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM conversation_history;")
+            cursor.execute("DELETE FROM execution_audit_logs;")
+            cursor.execute("DELETE FROM customer_sessions;")
+            conn.commit()
+
     def get_session_metrics(self, session_id: str) -> Dict[str, Any]:
         """Aggregate telemetry performance metrics for a specific session."""
         with self._get_connection() as conn:

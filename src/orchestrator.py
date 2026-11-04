@@ -48,7 +48,7 @@ SYSTEM_PROMPT = """Você é o consultor de atendimento inteligente da Empório d
      * `query_store_policy`: para consultar regras oficiais da loja, frete, garantia, horários e endereço.
      * `authenticate_or_register_customer`: para identificar ou cadastrar o cliente pelo telefone.
      * `update_customer_profile`: para atualizar endereço e preferências musicais.
-7. **Uso Moderado de Emojis:** É permitido o uso moderado e pontual de emojis no diálogo com o cliente (no máximo 1 ou 2 por mensagem), preservando sempre a postura profissional e consultiva, sem poluição visual.
+7. **Diretriz Estrita de Emojis:** Reduza ao máximo o uso de emojis. Priorize sempre um texto limpo, elegante e profissional de colega músico consultor. No máximo 1 emoji moderno e colorido por mensagem (ex: 🎵 ou ✅), ou nenhum. NUNCA utilize emojis antigos monocromáticos, desenhados em preto-e-branco ou caracteres obsoletos (como ☺️, ☻, ☹, ☺, ♫, ♬, 🎸). Se houver dúvida, prefira não usar nenhum emoji.
 8. **Saudações, Cumprimentos e Interações Humanizadas:**
    - Ao receber saudações básicas (ex: 'oi', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'tudo bem?', 'como vai?'), responda exatamente como um colega músico e consultor humano faria: retribua o cumprimento de forma calorosa, simpática e educada, pergunte como a pessoa está e como você pode ajudá-la hoje no mundo dos instrumentos musicais.
    - NUNCA responda friamente ou roboticamente a um cumprimento.
@@ -1108,6 +1108,43 @@ class ConversationalOrchestrator:
                 prompt_tokens,
                 completion_tokens,
             ) = self._fallback_offline_agent(sanitized_input, session_id)
+
+        # Deterministic Customer Synchronization:
+        # If customer provided contact details (phone and/or name) and LLM did not call the tool,
+        # execute authentication/registration programmatically so database state & CRM stay 100% in sync.
+        phone_match = (
+            re.search(r"(?:(?:\+|00)?55\s*)?(?:\(?([1-9]{2})\)?\s*)?(9?\d{4})[-\s]?(\d{4})\b", sanitized_input)
+            or re.search(r"\b(\d{10,11})\b", sanitized_input)
+        )
+        if phone_match and not any("authenticate_or_register_customer" in t for t in tools_invoked):
+            clean_digits = normalize_phone(phone_match.group(0))
+            if len(clean_digits) >= 10:
+                name_extract = re.search(
+                    r"(?i)\b(?:meu\s+nome\s+[ée]|sou\s+(?:o|a)?|chamo-me|me\s+chamo)\s+([A-Za-zÀ-ÖØ-öø-ÿ]+(?:\s+[A-Za-zÀ-ÖØ-öø-ÿ]+)?)",
+                    sanitized_input,
+                )
+                cust_name = name_extract.group(1).strip() if name_extract else (session_state.get("customer_name") or "")
+                t_start = time.perf_counter()
+                reg_res = self._execute_tool(
+                    "authenticate_or_register_customer",
+                    {"phone": clean_digits, "name": cust_name},
+                )
+                t_lat = (time.perf_counter() - t_start) * 1000.0
+                tools_invoked.append(f"authenticate_or_register_customer(phone='{clean_digits}', name='{cust_name}')")
+                tool_payloads.append(reg_res)
+                if isinstance(reg_res, dict):
+                    session_state["customer_id"] = reg_res.get("customer_id")
+                    session_state["phone"] = reg_res.get("phone")
+                    session_state["customer_name"] = reg_res.get("name")
+                self.audit_store.log_audit_event(
+                    session_id=session_id,
+                    event_type="TOOL_INVOCATION",
+                    component_name="authenticate_or_register_customer",
+                    input_payload={"phone": clean_digits, "name": cust_name},
+                    output_payload=reg_res,
+                    latency_ms=t_lat,
+                    status="SUCCESS",
+                )
 
         # ---------------------------------------------------------
         # Layer 3: Output Guardrails (Factual Grounding & Persona)
