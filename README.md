@@ -381,6 +381,15 @@ pytest tests/ -v
 > [!TIP]
 > To execute the manual test battery (including Prompt Injection, Out-of-Scope refusals, CDC returns, and CRM registration checks), see [docs/manual_testing_guide.md](docs/manual_testing_guide.md). To purge test data and return `emporio_records.db` to 0 records, run `python3 scripts/reset_db.py` or use the sidebar maintenance tool in Streamlit.
 
+### Continuous Integration & CI/CD Quality Gate (`.github/workflows/ci.yml`)
+
+The repository enforces a strict automated CI/CD pipeline running on GitHub Actions to guarantee the integrity of the **Gold Version (`v1.0.0-gold`)** across all future commits and Pull Requests:
+
+1. **AST & Bytecode Syntax Compilation Gate:** Executes `py_compile` across all Python source files (`app.py`, `src/`, `scripts/`, `tests/`) to permanently eliminate any possibility of indentation or syntax errors escaping into staging or production.
+2. **Security & Secrets Leak Prevention:** Scans tracked repository assets with strict regex filters to block accidental inclusion of API keys (`gsk_`, `sk-`, `ghp_`, `AIza`) or personal access tokens.
+3. **Deterministic Pytest Suite (52 Tests):** Validates all multi-layer guardrails, PII masking, CDC remorse calculations, customer authentication synchronization, and RAG policy retrieval before merging.
+4. **Gold Version Release Envelope:** Formally tagged as `v1.0.0-gold` with semantic release traceability.
+
 ---
 
 ## 8. Known Limitations & Production Roadmap ("Com Mais Tempo")

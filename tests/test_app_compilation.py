@@ -41,3 +41,4 @@ def test_all_project_python_files_compile():
         parsed = ast.parse(code, filename=py_file)
         assert parsed is not None, f"Failed to parse AST for {py_file}"
         py_compile.compile(py_file, doraise=True)
+
